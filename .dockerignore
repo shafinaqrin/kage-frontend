@@ -1,0 +1,14 @@
+node_modules
+.next
+dist
+.agents
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.vscode
+kage-initial-dashboard-plan.md
+docker-compose.yml
+Makefile
+skills-lock.json
