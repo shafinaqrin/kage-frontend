@@ -1,0 +1,60 @@
+{
+  "version": 3,
+  "skills": {
+    "extract-design-system": {
+      "source": "arvindrk/extract-design-system",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/arvindrk/extract-design-system.git",
+      "skillPath": "skills/extract-design-system/SKILL.md",
+      "skillFolderHash": "e64b6fec82d59d296aad44ef9dacf42ad1d5eafd",
+      "installedAt": "2026-09-09T11:26:23.016Z",
+      "updatedAt": "2026-09-09T11:26:23.016Z"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "76a98a285cb0434f3d39e1a873823556330e398b",
+      "installedAt": "2026-09-09T11:27:11.872Z",
+      "updatedAt": "2026-09-09T11:27:11.872Z"
+    },
+    "high-end-visual-design": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/leonxlnx/taste-skill.git",
+      "skillPath": "skills/soft-skill/SKILL.md",
+      "skillFolderHash": "1b5943432ddd1b980206968c529a323cc992dbec",
+      "installedAt": "2026-09-09T11:30:02.972Z",
+      "updatedAt": "2026-09-09T11:30:02.972Z"
+    },
+    "sleek-design-mobile-apps": {
+      "source": "sleekdotdesign/agent-skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/sleekdotdesign/agent-skills.git",
+      "skillPath": "skills/design-mobile-apps/SKILL.md",
+      "skillFolderHash": "187fce11471ced0aa7bb72621b005156c76e0435",
+      "installedAt": "2026-09-09T15:29:37.557Z",
+      "updatedAt": "2026-09-09T15:29:37.557Z"
+    }
+  },
+  "dismissed": {
+    "findSkillsPrompt": true
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "antigravity-cli",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-code-cli",
+    "opencode",
+    "warp",
+    "zed",
+    "kilo"
+  ]
+}
