@@ -1,0 +1,83 @@
+:root {
+  --m3-primary: #1a73e8;
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #d3e3fd;
+  --m3-on-primary-container: #001b3f;
+  --m3-secondary: #5f6368;
+  --m3-secondary-container: #e8eaed;
+  --m3-on-secondary-container: #1f1f1f;
+  --m3-tertiary: #6750a4;
+  --m3-tertiary-container: #eadcff;
+  --m3-on-tertiary-container: #21005d;
+  --m3-surface: #f9f9fc;
+  --m3-surface-dim: #dadbe0;
+  --m3-surface-container: #f0f1f5;
+  --m3-surface-container-high: #e9eaf0;
+  --m3-surface-container-highest: #e1e2e8;
+  --m3-on-surface: #1a1b20;
+  --m3-on-surface-variant: #45464f;
+  --m3-outline: #767780;
+  --m3-outline-variant: #c7c7d0;
+  --m3-error: #ba1a1a;
+  --m3-scrim: rgba(0, 0, 0, 0.4);
+  --positive: #188038;
+  --positive-container: #c8f0d0;
+  --negative: #b3261e;
+  --negative-container: #f9dedc;
+  --flat: #5f6368;
+  --shadow-color: 210 40% 20%;
+  --font-stack: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --ease-standard: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --md-sys-color-primary: var(--m3-primary);
+  --md-sys-color-on-primary: var(--m3-on-primary);
+  --md-sys-color-primary-container: var(--m3-primary-container);
+  --md-sys-color-on-primary-container: var(--m3-on-primary-container);
+  --md-sys-color-surface: var(--m3-surface);
+  --md-sys-color-on-surface: var(--m3-on-surface);
+  --md-sys-color-surface-container: var(--m3-surface-container);
+  --md-sys-color-outline: var(--m3-outline);
+  --md-filter-chip-container-shape: 999px;
+  --md-filter-chip-label-text-font: var(--font-stack);
+  --md-chip-set-horizontal-gap: 0.35rem;
+  --md-outlined-button-container-shape: 999px;
+  --md-outlined-button-outline-color: var(--m3-outline-variant);
+  --md-outlined-button-label-text-color: var(--m3-on-surface-variant);
+  --md-outlined-button-label-text-font: 'Plus Jakarta Sans', 'Google Sans', system-ui, sans-serif;
+  --md-outlined-button-label-text-size: 0.78rem;
+  --md-outlined-button-label-text-weight: 700;
+  --md-outlined-button-label-text-tracking: 0.01em;
+  --md-outlined-button-hover-label-text-color: var(--m3-on-surface);
+}
+
+[data-theme='dark'] {
+  /* Google Pixel / Material 3 blue dynamic-style dark roles: low-chroma
+     surfaces, blue primary containers, and restrained tonal contrast. */
+  --m3-primary: #a8c7fa;
+  --m3-on-primary: #0a305f;
+  --m3-primary-container: #004a77;
+  --m3-on-primary-container: #d1e4ff;
+  --m3-secondary: #bec6dc;
+  --m3-secondary-container: #3e4759;
+  --m3-on-secondary-container: #dae2f9;
+  --m3-tertiary: #d6bee4;
+  --m3-tertiary-container: #53415f;
+  --m3-on-tertiary-container: #f2daff;
+  --m3-surface: #111318;
+  --m3-surface-dim: #111318;
+  --m3-surface-container: #1e1f25;
+  --m3-surface-container-high: #282a30;
+  --m3-surface-container-highest: #33343a;
+  --m3-on-surface: #e2e2e9;
+  --m3-on-surface-variant: #c4c6d0;
+  --m3-outline: #8e9099;
+  --m3-outline-variant: #44464f;
+  --m3-error: #ffb4ab;
+  --m3-scrim: rgba(0, 0, 0, 0.6);
+  --positive: #81c995;
+  --positive-container: #123b24;
+  --negative: #ffb4ab;
+  --negative-container: #5a1a17;
+  --flat: #a5a8b2;
+  --shadow-color: 220 25% 2%;
+}

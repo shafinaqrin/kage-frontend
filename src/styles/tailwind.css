@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    min-height: 100dvh;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background: var(--m3-surface);
+    color: var(--m3-on-surface);
+    transition: background 500ms var(--ease-standard), color 500ms var(--ease-standard);
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--m3-primary);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .motion-standard {
+    transition-timing-function: var(--ease-standard);
+  }
+
+  .motion-spring {
+    transition-timing-function: var(--ease-spring);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
