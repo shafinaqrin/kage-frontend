@@ -1,0 +1,30 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BACKEND_HOST: ${BACKEND_HOST:-kage-backend}
+        BACKEND_PORT: ${BACKEND_PORT:-3000}
+    image: kage-frontend:local
+    container_name: kage-frontend
+    restart: unless-stopped
+    init: true
+    environment:
+      BACKEND_HOST: ${BACKEND_HOST:-kage-backend}
+      BACKEND_PORT: ${BACKEND_PORT:-3000}
+    ports:
+       - "${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - kage-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5173/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+networks:
+  kage-network:
+    external: true
+    name: ${KAGE_DOCKER_NETWORK:-kage-network}
