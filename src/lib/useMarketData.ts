@@ -6,12 +6,11 @@ import type { ConnectionStatus } from '../domain/types'
 interface MarketState<T> {
   data: T
   status: ConnectionStatus
-  dataSource: 'demo' | 'live'
   error: string | null
 }
 
 export function useMarketData<T>(
-  fetcher: (signal: AbortSignal) => Promise<{ data: T; source: 'demo' | 'live' }>,
+  fetcher: (signal: AbortSignal) => Promise<T>,
   initial: T,
   pollMs?: number,
   /** Changing this string refetches immediately (e.g. `symbol|timeframe`). */
@@ -20,7 +19,6 @@ export function useMarketData<T>(
   const [state, setState] = useState<MarketState<T>>({
     data: initial,
     status: 'connecting',
-    dataSource: 'demo',
     error: null,
   })
   const fetcherRef = useRef(fetcher)
@@ -28,14 +26,13 @@ export function useMarketData<T>(
 
   const load = useCallback(async (signal: AbortSignal) => {
     try {
-      const { data, source } = await fetcherRef.current(signal)
-      setState({ data, status: 'connected', dataSource: source, error: null })
+      const data = await fetcherRef.current(signal)
+      setState({ data, status: 'connected', error: null })
     } catch (error) {
       if (signal.aborted) return
       setState((prev) => ({
         ...prev,
         status: 'disconnected',
-        dataSource: 'demo',
         error: error instanceof Error ? error.message : 'Request failed',
       }))
     }

@@ -58,15 +58,15 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
       {quotes.length === 0 ? (
         <p className="empty-state" role="status">
           {status === 'connecting'
-            ? 'Loading quotes from Moomoo OpenD…'
-            : 'No quote data. Moomoo OpenD returned nothing for this watchlist — no fallback data is shown.'}
+            ? 'Loading the Bursa watchlist from Moomoo OpenD…'
+            : 'No Bursa symbols are in the Moomoo OpenD watchlist. Add some in moomoo and they appear here — no fallback list is used.'}
         </p>
       ) : filtered.length === 0 ? (
         <p className="empty-state">No symbols match “{query}”.</p>
       ) : (
         <div className="table-scroll">
           <table className="quote-table">
-            <caption className="visually-hidden">Bursa watchlist quotes from Moomoo OpenD</caption>
+            <caption className="visually-hidden">Bursa watchlist from Moomoo OpenD</caption>
             <thead>
               <tr>
                 <th scope="col">Symbol</th>

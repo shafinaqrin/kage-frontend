@@ -46,4 +46,35 @@ export function sessionLabel(session: MarketSession): string {
   return labels[session]
 }
 
+/**
+ * Map an OpenD `market_my` value onto the UI's session vocabulary.
+ *
+ * Returns `null` when OpenD gave nothing usable, so callers can omit the session
+ * rather than guess.
+ */
+export function sessionFromOpenD(value: string | null | undefined): MarketSession | null {
+  if (!value) return null
+
+  switch (value.toUpperCase()) {
+    case 'OPEN':
+    case 'MORNING':
+    case 'AFTERNOON':
+      return value.toUpperCase() === 'AFTERNOON' ? 'afternoon' : 'open'
+    case 'PRE_OPEN':
+    case 'PRE_OPEN_START':
+    case 'PRE_OPEN_END':
+      return 'pre-open'
+    case 'REST':
+    case 'LUNCH_BREAK':
+      return 'lunch-break'
+    case 'CLOSED':
+    case 'AFTER_HOURS_END':
+    case 'AFTER_HOURS_BEGIN':
+    case 'NIGHT_END':
+      return 'closed'
+    default:
+      return null
+  }
+}
+
 type MarketSession = import('../domain/types').MarketSession

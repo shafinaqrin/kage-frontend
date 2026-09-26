@@ -1,4 +1,4 @@
-import type { QuoteSnapshot } from '../domain/types'
+import type { QuoteSnapshot, WatchlistEntry } from '../domain/types'
 
 export class ApiError extends Error {
   constructor(
@@ -12,22 +12,7 @@ export class ApiError extends Error {
 
 const API_BASE = '/api'
 
-/**
- * The watchlist is declared here rather than stored in the database.
- * Codes are Bursa numeric codes; the backend maps them to Moomoo `MY.<code>`.
- */
-export const watchlist = [
-  { symbol: '1155', company: 'Malayan Banking Berhad' },
-  { symbol: '1023', company: 'CIMB Group Holdings Berhad' },
-  { symbol: '1295', company: 'Public Bank Berhad' },
-  { symbol: '5347', company: 'Tenaga Nasional Berhad' },
-  { symbol: '5225', company: 'IHH Healthcare Berhad' },
-  { symbol: '3182', company: 'Genting Berhad' },
-  { symbol: '5681', company: 'PETRONAS Dagangan Berhad' },
-  { symbol: '4707', company: 'Nestle (Malaysia) Berhad' },
-] as const
-
-/** Raw shape returned by the Laravel backend, which proxies Moomoo OpenD. */
+/** Raw shape returned by the Laravel backend, which proxies the OpenD sidecar. */
 interface BackendQuote {
   symbol: string
   name: string | null
@@ -48,20 +33,39 @@ interface BackendQuote {
 }
 
 interface BackendQuotesResponse {
-  source: 'moomoo-opend'
+  source: string
   quotes: BackendQuote[]
+}
+
+/** Raw watchlist row: OpenD owns membership, so nothing is declared client-side. */
+interface BackendWatchlistRow {
+  symbol: string
+  name: string | null
+  market: string
+}
+
+interface BackendWatchlistResponse {
+  source: string
+  symbols: BackendWatchlistRow[]
+}
+
+/** Provider health, including the live Bursa session as reported by OpenD. */
+interface BackendHealthResponse {
+  provider: {
+    marketSession: string | null
+  }
 }
 
 /**
  * Normalise an OpenD-backed quote. When OpenD has no permission or no data the
- * snapshot is marked `available: false` and the UI renders "No data" — no
- * fabricated price is ever substituted.
+ * snapshot is marked `available: false` and the UI renders "—" — no fabricated
+ * price is ever substituted.
  */
-function normalizeQuote(quote: BackendQuote, fallbackName: string): QuoteSnapshot {
+function normalizeQuote(quote: BackendQuote): QuoteSnapshot {
   if (!quote.available || quote.last === null) {
     return {
       symbol: quote.symbol,
-      company: quote.name ?? fallbackName,
+      company: quote.name ?? quote.symbol,
       available: false,
       last: null,
       change: null,
@@ -79,7 +83,7 @@ function normalizeQuote(quote: BackendQuote, fallbackName: string): QuoteSnapsho
 
   return {
     symbol: quote.symbol,
-    company: quote.name ?? fallbackName,
+    company: quote.name ?? quote.symbol,
     available: true,
     last: quote.last,
     change,
@@ -92,24 +96,64 @@ function normalizeQuote(quote: BackendQuote, fallbackName: string): QuoteSnapsho
   }
 }
 
+function normalizeEntry(row: BackendWatchlistRow): WatchlistEntry {
+  return {
+    symbol: row.symbol,
+    company: row.name ?? row.symbol,
+  }
+}
+
 export const marketApi = {
   /**
+   * The live Bursa session, as reported verbatim by OpenD.
+   *
+   * Read rather than assumed: the UI must not claim "Market Open" when OpenD
+   * says the exchange is closed.
+   */
+  async marketSession(signal?: AbortSignal): Promise<string | null> {
+    const response = await fetch(`${API_BASE}/health`, { signal })
+
+    if (!response.ok) {
+      throw new ApiError(`Health API responded ${response.status}`, response.status)
+    }
+
+    const data = (await response.json()) as BackendHealthResponse
+    return data.provider?.marketSession ?? null
+  },
+
+  /**
+   * The Bursa watchlist as held in Moomoo OpenD.
+   *
+   * Membership is read from the OpenD watchlist group at runtime — there is no
+   * client-side list of symbols to drift out of sync with what the user tracks.
+   */
+  async watchlist(signal?: AbortSignal): Promise<readonly WatchlistEntry[]> {
+    const response = await fetch(`${API_BASE}/market/watchlist`, { signal })
+
+    if (!response.ok) {
+      throw new ApiError(`Watchlist API responded ${response.status}`, response.status)
+    }
+
+    const data = (await response.json()) as BackendWatchlistResponse
+    return data.symbols.map(normalizeEntry)
+  },
+
+  /**
    * Watchlist quotes straight from Moomoo OpenD via the backend.
-   * Throws on failure so the UI can show an explicit unavailable state.
+   *
+   * Omitting `symbols` lets the server derive them from the live OpenD
+   * watchlist, so the client and server cannot disagree about membership.
+   * Throws only on transport/permission failure, so the UI can show an explicit
+   * unavailable state instead of inventing data.
    */
   async quotes(signal?: AbortSignal): Promise<readonly QuoteSnapshot[]> {
-    const codes = watchlist.map((entry) => entry.symbol).join(',')
-    const response = await fetch(`${API_BASE}/market/quotes?symbols=${codes}`, { signal })
+    const response = await fetch(`${API_BASE}/market/quotes`, { signal })
 
     if (!response.ok) {
       throw new ApiError(`Quotes API responded ${response.status}`, response.status)
     }
 
     const data = (await response.json()) as BackendQuotesResponse
-    const names = new Map<string, string>(
-      watchlist.map((entry) => [entry.symbol as string, entry.company as string]),
-    )
-
-    return data.quotes.map((quote) => normalizeQuote(quote, names.get(quote.symbol) ?? quote.symbol))
+    return data.quotes.map(normalizeQuote)
   },
 }

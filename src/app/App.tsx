@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
-import type { ConnectionStatus, DataSource, MarketOverview, QuoteSnapshot } from '../domain/types'
+import type { ConnectionStatus, MarketOverview, MarketSession, QuoteSnapshot } from '../domain/types'
 import { marketApi } from '../data/api'
 import { useMarketData } from '../lib/useMarketData'
 import { useTheme } from '../lib/useTheme'
-import { formatClock } from '../lib/format'
+import { formatClock, sessionFromOpenD, sessionLabel } from '../lib/format'
 import { OverviewCards } from '../features/market-overview/OverviewCards'
 import { Watchlist } from '../features/quotes/Watchlist'
 
@@ -34,11 +34,14 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   return <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
-function ConnectionBadge({ status, source }: { status: ConnectionStatus; source: DataSource }) {
+function ConnectionBadge({ status }: { status: ConnectionStatus }) {
+  const label =
+    status === 'connected' ? 'OpenD connected' : status === 'connecting' ? 'Connecting' : 'OpenD unavailable'
+
   return (
     <span className={`inline-flex items-center gap-2 rounded-full bg-secondary-container px-3 py-1.5 text-[0.72rem] font-semibold text-[var(--m3-on-secondary-container)] ${status === 'disconnected' ? 'bg-[var(--negative-container)] text-[var(--negative)]' : ''}`}>
-      <span className={`size-2 rounded-full bg-[var(--positive)] ${status === 'connecting' ? 'animate-pulse bg-[var(--m3-tertiary)]' : ''}`} aria-hidden="true" />
-      {source === 'demo' ? 'Demo data' : 'Live data'} · {status}
+      <span className={`size-2 rounded-full bg-[var(--positive)] ${status === 'connecting' ? 'animate-pulse bg-[var(--m3-tertiary)]' : ''} ${status === 'disconnected' ? 'bg-[var(--negative)]' : ''}`} aria-hidden="true" />
+      {label}
     </span>
   )
 }
@@ -47,13 +50,27 @@ export default function App() {
   const { theme, toggleTheme, hydrated } = useTheme()
   const [nav, setNav] = useState<NavKey>('dashboard')
   const [railOpen, setRailOpen] = useState(false)
-  const [symbol, setSymbol] = useState('1155')
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
 
-  const quotes = useMarketData(
-    (signal) => marketApi.quotes(signal).then((d) => ({ data: d, source: 'live' as const })),
+  // The watchlist (and therefore the symbol set) is owned by OpenD: the client
+  // never holds its own copy of the codes.
+  const quotes = useMarketData<readonly QuoteSnapshot[]>(
+    (signal) => marketApi.quotes(signal),
     [],
     15_000,
   )
+
+  // The Bursa session is read from OpenD, not assumed: when OpenD reports
+  // nothing usable we fall back to "closed" rather than claiming "Market Open".
+  const session = useMarketData<MarketSession | null>(
+    (signal) => marketApi.marketSession(signal).then(sessionFromOpenD),
+    null,
+    60_000,
+  )
+
+  const symbol = selectedSymbol ?? quotes.data[0]?.symbol ?? ''
+
+  const handleSelect = (next: string) => setSelectedSymbol(next)
 
   // Breadth and session are derived from the live Moomoo quotes rather than a
   // stored or invented snapshot: no data in, no data shown.
@@ -65,13 +82,33 @@ export default function App() {
     const declining = live.filter((q) => q.change < 0).length
 
     return {
-      session: 'open',
+      session: session.data ?? 'closed',
       dataSource: 'live',
       index: { name: 'Bursa watchlist', value: live.length, change: advancing - declining, changePercent: 0 },
       breadth: { advancing, declining, unchanged: live.length - advancing - declining },
       updatedAt: new Date().toISOString(),
     }
-  }, [quotes.data])
+  }, [quotes.data, session.data])
+
+  // OpenD reports an explicit reason when MY quote rights are missing. Surface
+  // it once, prominently, instead of repeating it on every row.
+  const unavailableReason = useMemo(
+    () => quotes.data.find((q) => !q.available)?.reason ?? quotes.error ?? null,
+    [quotes.data, quotes.error],
+  )
+  const pricingUnavailable = quotes.data.length > 0 && quotes.data.every((q) => !q.available)
+
+  const quotesErrorBanner = quotes.error && (
+    <p className="conn-banner" role="status">
+      {quotes.error} — no quote data shown.
+    </p>
+  )
+
+  const pricingBanner = !quotes.error && pricingUnavailable && (
+    <p className="conn-banner" role="status">
+      {unavailableReason}
+    </p>
+  )
 
   return (
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-surface bg-[radial-gradient(circle_at_72%_-10%,color-mix(in_srgb,var(--m3-primary-container)_42%,transparent),transparent_28rem)] text-ink">
@@ -87,9 +124,9 @@ export default function App() {
         </button>
         <div className="mr-auto flex flex-col leading-tight">
           <span className="text-[1.05rem] font-extrabold tracking-[-0.01em]">Kage</span>
-          <span className="text-[0.72rem] text-muted max-[768px]:hidden">Bursa Intraday · {formatClock(overview.updatedAt)} MYT</span>
+          <span className="text-[0.72rem] text-muted max-[768px]:hidden">Bursa {sessionLabel(overview.session)}{hydrated ? ` · ${formatClock(overview.updatedAt)} MYT` : ''}</span>
         </div>
-        <ConnectionBadge status={quotes.status} source={quotes.dataSource} />
+        <ConnectionBadge status={quotes.status} />
          <button type="button" className="grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent text-muted transition-transform duration-300 motion-spring hover:bg-[color-mix(in_srgb,var(--m3-on-surface)_8%,transparent)] active:scale-95" onClick={toggleTheme} aria-label={hydrated ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme` : 'Toggle theme'}>
            <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
         </button>
@@ -128,18 +165,19 @@ export default function App() {
               </div>
             </section>
           ) : nav === 'watchlist' ? (
-            <Watchlist quotes={quotes.data} selected={symbol} onSelect={setSymbol} status={quotes.status} />
+            <>
+              {quotesErrorBanner}
+              {pricingBanner}
+              <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
+            </>
           ) : (
             <>
               <OverviewCards overview={overview} quotes={quotes.data} />
               <div className="grid w-full min-w-0 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-6 max-[1080px]:grid-cols-1 max-[768px]:gap-4">
-                <Watchlist quotes={quotes.data} selected={symbol} onSelect={setSymbol} status={quotes.status} />
+                <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
               </div>
-              {quotes.error && (
-                <p className="conn-banner" role="status">
-                  Moomoo OpenD unreachable ({quotes.error}) — no quote data shown.
-                </p>
-              )}
+              {quotesErrorBanner}
+              {pricingBanner}
             </>
           )}
         </main>

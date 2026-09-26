@@ -1,4 +1,8 @@
-export type DataSource = 'demo' | 'live'
+/**
+ * Where a quote came from. Kage has exactly one source — Moomoo OpenD — and no
+ * demo/sample mode, so there is deliberately no second variant here.
+ */
+export type DataSource = 'live'
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected'
 
@@ -6,7 +10,8 @@ export type MarketSession = 'pre-open' | 'open' | 'lunch-break' | 'afternoon' | 
 
 export type TrendDirection = 'up' | 'down' | 'flat'
 
-export interface SymbolRef {
+/** A watchlist instrument as held in Moomoo OpenD. */
+export interface WatchlistEntry {
   readonly symbol: string
   readonly company: string
 }
@@ -14,7 +19,7 @@ export interface SymbolRef {
 export interface QuoteSnapshot {
   readonly symbol: string
   readonly company: string
-  /** False when Moomoo OpenD has no data/permission — the UI shows "No data". */
+  /** False when Moomoo OpenD has no data/permission — the UI shows "—". */
   readonly available: boolean
   readonly last: number | null
   readonly change: number | null
