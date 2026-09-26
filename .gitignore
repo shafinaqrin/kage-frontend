@@ -1,5 +1,9 @@
 node_modules
 .next
+out
+dist
+*.tsbuildinfo
 .env
 .env.backup
 .env.production
+.DS_Store
