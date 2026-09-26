@@ -53,11 +53,12 @@ export default function App() {
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
 
   // The watchlist (and therefore the symbol set) is owned by OpenD: the client
-  // never holds its own copy of the codes.
+  // never holds its own copy of the codes. Polled slowly because the iTick free
+  // tier allows only a small number of quote calls before it rate-limits.
   const quotes = useMarketData<readonly QuoteSnapshot[]>(
     (signal) => marketApi.quotes(signal),
     [],
-    15_000,
+    120_000,
   )
 
   // The Bursa session is read from OpenD, not assumed: when OpenD reports
