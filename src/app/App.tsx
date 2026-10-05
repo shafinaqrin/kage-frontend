@@ -2,24 +2,26 @@
 
 import { useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
-import type { ConnectionStatus, MarketOverview, MarketSession, QuoteSnapshot } from '../domain/types'
+import type { ConnectionStatus, MarketOverview, MarketSession, QuoteSnapshot, ScreenerRow } from '../domain/types'
 import { marketApi } from '../data/api'
 import { useMarketData } from '../lib/useMarketData'
 import { useTheme } from '../lib/useTheme'
 import { formatClock, sessionFromOpenD, sessionLabel } from '../lib/format'
 import { OverviewCards } from '../features/market-overview/OverviewCards'
 import { Watchlist } from '../features/quotes/Watchlist'
+import { Screener } from '../features/screener/Screener'
 
-type NavKey = 'dashboard' | 'watchlist' | 'positions' | 'settings'
+type NavKey = 'dashboard' | 'watchlist' | 'screener' | 'positions' | 'settings'
 
 const NAV_ITEMS: readonly { key: NavKey; label: string; icon: IconName; disabled?: boolean }[] = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'watchlist', label: 'Watchlist', icon: 'watchlist' },
+  { key: 'screener', label: 'Screener', icon: 'screener' },
   { key: 'positions', label: 'Positions', icon: 'wallet', disabled: true },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
-type IconName = 'menu' | 'sun' | 'moon' | 'dashboard' | 'watchlist' | 'wallet' | 'settings'
+type IconName = 'menu' | 'sun' | 'moon' | 'dashboard' | 'watchlist' | 'screener' | 'wallet' | 'settings'
 
 function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
   const paths: Record<IconName, ReactElement> = {
@@ -28,6 +30,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     moon: <path d="M19.2 14.3A7.8 7.8 0 0 1 9.7 4.8a8 8 0 1 0 9.5 9.5Z" />,
     dashboard: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></>,
     watchlist: <><path d="M5 6.5h14M5 12h14M5 17.5h9" /><circle cx="4" cy="6.5" r=".7" fill="currentColor" stroke="none" /><circle cx="4" cy="12" r=".7" fill="currentColor" stroke="none" /><circle cx="4" cy="17.5" r=".7" fill="currentColor" stroke="none" /></>,
+    screener: <><path d="M4 5h16l-6 7v5.5l-4 2V12Z" /></>,
     wallet: <><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H19v14H6.5A2.5 2.5 0 0 1 4 16.5Z" /><path d="M4 8h15M15 12h4" /><circle cx="15" cy="12" r=".7" fill="currentColor" stroke="none" /></>,
     settings: <><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /><circle cx="12" cy="12" r="3.5" /></>,
   }
@@ -66,6 +69,15 @@ export default function App() {
     (signal) => marketApi.marketSession(signal).then(sessionFromOpenD),
     null,
     60_000,
+  )
+
+  // The screener is a separate source from OpenD: it is crawled from KLSE
+  // Screener by the kage-screener sidecar and already filtered to Shariah names.
+  // Slower-moving than quotes, so it is polled far less often.
+  const screener = useMarketData<readonly ScreenerRow[]>(
+    (signal) => marketApi.screenerShariah(signal),
+    [],
+    15 * 60_000,
   )
 
   const symbol = selectedSymbol ?? quotes.data[0]?.symbol ?? ''
@@ -170,11 +182,14 @@ export default function App() {
               {pricingBanner}
               <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
             </>
+          ) : nav === 'screener' ? (
+            <Screener rows={screener.data} status={screener.status} error={screener.error} />
           ) : (
             <>
               <OverviewCards overview={overview} quotes={quotes.data} />
               <div className="grid w-full min-w-0 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-6 max-[1080px]:grid-cols-1 max-[768px]:gap-4">
                 <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
+                <Screener rows={screener.data} status={screener.status} error={screener.error} />
               </div>
               {quotesErrorBanner}
               {pricingBanner}

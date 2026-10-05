@@ -52,3 +52,31 @@ export interface MarketOverview {
   readonly breadth: MarketBreadth
   readonly updatedAt: string
 }
+
+/**
+ * One Shariah-compliant instrument from the screener.
+ *
+ * Sourced from KLSE Screener via the `kage-screener` sidecar, not from OpenD:
+ * the screener needs fundamental fields (PE, ROE, NTA) that the quote path does
+ * not provide. Every figure is nullable because the upstream site genuinely
+ * omits values, and a missing figure renders "—" rather than a fabricated 0.
+ */
+export interface ScreenerRow {
+  readonly code: string
+  readonly name: string
+  readonly category: string
+  readonly market: string
+  readonly price: number | null
+  readonly change: number | null
+  readonly changePercent: number | null
+  readonly week52: string
+  readonly volume: number | null
+  readonly eps: number | null
+  readonly dps: number | null
+  readonly nta: number | null
+  readonly pe: number | null
+  readonly dy: number | null
+  readonly roe: number | null
+  readonly ptbv: number | null
+  readonly marketCap: number | null
+}

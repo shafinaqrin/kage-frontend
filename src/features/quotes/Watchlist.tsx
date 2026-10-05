@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { ConnectionStatus, QuoteSnapshot } from '../../domain/types'
-import { formatPrice, formatSigned, formatSignedPercent, formatVolume } from '../../lib/format'
+import { formatPrice, formatSignedPercent, formatVolume } from '../../lib/format'
+import { useTableSort } from '../../lib/useSort'
+import { SortableHeader } from '../shared/SortableHeader'
 
 interface WatchlistProps {
   quotes: readonly QuoteSnapshot[]
@@ -12,6 +14,21 @@ interface WatchlistProps {
 }
 
 const NO_DATA = '—'
+
+/**
+ * Sort keys mirror the visible columns, so `Chg %` sorts by changePercent while
+ * the column shows the percentage -- there is no bare `Chg` column here, unlike
+ * the screener.
+ */
+type SortKey = 'symbol' | 'last' | 'changePercent' | 'volume'
+
+/** Module scope keeps the accessor reference stable for the sort memo. */
+const SORT_ACCESSORS: Record<SortKey, (q: QuoteSnapshot) => number | string | null> = {
+  symbol: (q) => q.symbol,
+  last: (q) => (q.available ? q.last : null),
+  changePercent: (q) => (q.available ? q.changePercent : null),
+  volume: (q) => (q.available ? q.volume : null),
+}
 
 function formatValue(
   snapshot: QuoteSnapshot,
@@ -23,17 +40,26 @@ function formatValue(
   return raw === null ? NO_DATA : format(raw)
 }
 
+/**
+ * The user's Bursa watchlist, as held in Moomoo OpenD.
+ *
+ * Rows stay clickable to select a symbol; sorting lives on the column headers so
+ * the two never compete for the same gesture.
+ */
 export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps) {
   const [query, setQuery] = useState('')
+  const { rows: sorted, control } = useTableSort<SortKey, QuoteSnapshot>(quotes, SORT_ACCESSORS)
 
-  const filtered = quotes.filter(
-    (q) =>
-      q.symbol.toLowerCase().includes(query.toLowerCase()) ||
-      q.company.toLowerCase().includes(query.toLowerCase()),
-  )
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return sorted
+    return sorted.filter(
+      (q) => q.symbol.toLowerCase().includes(needle) || q.company.toLowerCase().includes(needle),
+    )
+  }, [sorted, query])
 
   return (
-    <section className="panel watchlist-panel min-w-0 max-w-full" aria-label="Watchlist">
+    <section className="panel min-w-0 max-w-full" aria-label="Watchlist">
       <header className="panel-head">
         <div>
           <h2>Watchlist</h2>
@@ -59,41 +85,47 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
         <p className="empty-state" role="status">
           {status === 'connecting'
             ? 'Loading the Bursa watchlist from Moomoo OpenD…'
-            : 'No Bursa symbols are in the Moomoo OpenD watchlist. Add some in moomoo and they appear here — no fallback list is used.'}
+            : 'No Bursa symbols are in the Moomoo OpenD watchlist. Add some in moomoo and they appear here.'}
         </p>
       ) : filtered.length === 0 ? (
         <p className="empty-state">No symbols match “{query}”.</p>
       ) : (
         <div className="table-scroll">
           <table className="quote-table">
-            <caption className="visually-hidden">Bursa watchlist from Moomoo OpenD</caption>
+            <caption className="visually-hidden">
+              Bursa watchlist from Moomoo OpenD. Column headers are sortable.
+            </caption>
             <thead>
               <tr>
-                <th scope="col">Symbol</th>
-                <th scope="col" className="num">Last</th>
-                <th scope="col" className="num">Chg</th>
-                <th scope="col" className="num">Chg&nbsp;%</th>
-                <th scope="col" className="num">Volume</th>
+                <SortableHeader label="Symbol" control={control('symbol')} />
+                <SortableHeader label="Last" numeric control={control('last')} />
+                <SortableHeader label="Chg %" numeric control={control('changePercent')} />
+                <SortableHeader label="Volume" numeric control={control('volume')} />
               </tr>
             </thead>
             <tbody>
               {filtered.map((q) => {
                 const tone = q.available ? (q.trend === 'up' ? 'up' : q.trend === 'down' ? 'down' : 'flat') : 'flat'
+                const rowTitle = q.available ? undefined : (q.reason ?? 'No data from Moomoo OpenD')
                 return (
                   <tr
                     key={q.symbol}
                     className={`quote-row ${q.symbol === selected ? 'is-selected' : ''} ${q.available ? '' : 'is-unavailable'}`}
                     onClick={() => onSelect(q.symbol)}
-                    title={q.available ? undefined : (q.reason ?? 'No data from Moomoo OpenD')}
+                    title={rowTitle}
                   >
                     <th scope="row">
-                      <button type="button" className="symbol-btn" onClick={() => onSelect(q.symbol)}>
+                      <button
+                        type="button"
+                        className="symbol-btn"
+                        onClick={() => onSelect(q.symbol)}
+                        title={rowTitle}
+                      >
                         <span className="symbol-code">{q.symbol}</span>
                         <span className="symbol-name">{q.company}</span>
                       </button>
                     </th>
                     <td className="num">{formatValue(q, (s) => s.last, formatPrice)}</td>
-                    <td className={`num tone-${tone}`}>{formatValue(q, (s) => s.change, formatSigned)}</td>
                     <td className={`num tone-${tone}`}>
                       {q.available ? (
                         <span className={`pill tone-${tone}-bg`}>

@@ -27,6 +27,19 @@ export function formatVolume(value: number): string {
   return String(value)
 }
 
+/**
+ * Valuation and return ratios (PE, ROE, DY, PTBV, NTA).
+ *
+ * Upstream values span a huge range — ROE can exceed 2,000% while NTA is often a
+ * few sen — so fixed decimals would render most of them as "0.00".
+ */
+export function formatRatio(value: number): string {
+  const abs = Math.abs(value)
+  if (abs >= 1000) return value.toFixed(0)
+  if (abs >= 100) return value.toFixed(1)
+  return value.toFixed(2)
+}
+
 export function formatClock(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-MY', {
     hour: '2-digit',

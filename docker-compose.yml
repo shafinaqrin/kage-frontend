@@ -1,3 +1,8 @@
+# All three packages share ONE compose project, keeping `docker compose ps` and
+# `logs` consistent. Discovery does not rely on the project name or on
+# container_name: the network alias below pins the hostname `kage-frontend`.
+name: kage
+
 services:
   frontend:
     build:
@@ -7,7 +12,8 @@ services:
         BACKEND_HOST: ${BACKEND_HOST:-kage-backend}
         BACKEND_PORT: ${BACKEND_PORT:-3000}
     image: kage-frontend:local
-    container_name: kage-frontend
+    # No container_name: pinning it makes `up --build` fail with
+    # "container name is already in use" once a stale exited container holds it.
     restart: unless-stopped
     init: true
     environment:
@@ -16,7 +22,11 @@ services:
     ports:
        - "${FRONTEND_PORT:-5173}:5173"
     networks:
-      - kage-network
+      kage-network:
+        # Explicit alias: on an external network Compose does not add the
+        # service-name alias, so `http://kage-frontend:5173` would not resolve.
+        aliases:
+          - kage-frontend
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5173/ || exit 1"]
       interval: 10s

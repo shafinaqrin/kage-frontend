@@ -502,6 +502,59 @@
   text-align: right;
 }
 
+/* ---------- Sortable headers ---------- */
+
+/* The button fills the header cell so the whole header is a click target. */
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: color 220ms var(--ease-standard);
+}
+
+/* Numeric columns are right-aligned, so their control follows the text. */
+.th-sort--num {
+  justify-content: flex-end;
+}
+
+.th-sort:hover {
+  color: var(--m3-on-surface);
+}
+
+.th-sort:focus-visible {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+
+.th-sort.is-active {
+  color: var(--m3-primary);
+}
+
+.th-sort-icon {
+  font-size: 0.6rem;
+  line-height: 1;
+  opacity: 0.45;
+  transition: opacity 220ms var(--ease-standard), transform 220ms var(--ease-spring);
+}
+
+.th-sort:hover .th-sort-icon {
+  opacity: 0.85;
+}
+
+.th-sort.is-active .th-sort-icon {
+  opacity: 1;
+}
+
 .quote-row {
   cursor: pointer;
   transition: background 220ms var(--ease-standard);
@@ -688,6 +741,23 @@
   .quote-table td:nth-child(5),
   .symbol-name {
     display: none;
+  }
+
+  /* The screener carries four extra fundamental columns; only the first four
+     survive on narrow screens, matching the watchlist's shape. */
+  .quote-table th:nth-child(n + 6),
+  .quote-table td:nth-child(n + 6) {
+    display: none;
+  }
+
+  /* Icons are hidden on mobile: cells are already tight, and the tappable
+     header still conveys the active sort through colour. */
+  .th-sort-icon {
+    display: none;
+  }
+
+  .th-sort {
+    gap: 0;
   }
 
 }

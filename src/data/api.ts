@@ -1,4 +1,4 @@
-import type { QuoteSnapshot, WatchlistEntry } from '../domain/types'
+import type { QuoteSnapshot, ScreenerRow, WatchlistEntry } from '../domain/types'
 
 export class ApiError extends Error {
   constructor(
@@ -56,6 +56,35 @@ interface BackendHealthResponse {
   }
 }
 
+/** Raw screener row as returned by the Laravel proxy over the kage-screener sidecar. */
+interface BackendScreenerRow {
+  code: string
+  name: string | null
+  category: string | null
+  market: string | null
+  price: number | null
+  change: number | null
+  changePercent: number | null
+  week52: string | null
+  volume: number | null
+  eps: number | null
+  dps: number | null
+  nta: number | null
+  pe: number | null
+  dy: number | null
+  roe: number | null
+  ptbv: number | null
+  marketCap: number | null
+}
+
+interface BackendScreenerResponse {
+  source: string
+  filter: string
+  count: number
+  fetchedAt: number | null
+  rows: BackendScreenerRow[]
+}
+
 /**
  * Normalise an OpenD-backed quote. When OpenD has no permission or no data the
  * snapshot is marked `available: false` and the UI renders "—" — no fabricated
@@ -100,6 +129,34 @@ function normalizeEntry(row: BackendWatchlistRow): WatchlistEntry {
   return {
     symbol: row.symbol,
     company: row.name ?? row.symbol,
+  }
+}
+
+/**
+ * Normalise one screener row.
+ *
+ * Absent figures stay `null`: the upstream site genuinely omits them, so the UI
+ * renders "—" rather than substituting a zero that would read as a real value.
+ */
+function normalizeScreenerRow(row: BackendScreenerRow): ScreenerRow {
+  return {
+    code: row.code,
+    name: row.name ?? row.code,
+    category: row.category ?? '',
+    market: row.market ?? '',
+    price: row.price,
+    change: row.change,
+    changePercent: row.changePercent,
+    week52: row.week52 ?? '',
+    volume: row.volume,
+    eps: row.eps,
+    dps: row.dps,
+    nta: row.nta,
+    pe: row.pe,
+    dy: row.dy,
+    roe: row.roe,
+    ptbv: row.ptbv,
+    marketCap: row.marketCap,
   }
 }
 
@@ -155,5 +212,26 @@ export const marketApi = {
 
     const data = (await response.json()) as BackendQuotesResponse
     return data.quotes.map(normalizeQuote)
+  },
+
+  /**
+   * Bursa instruments from the screener: Shariah-compliant, uptrend (above
+   * SMA50), priced RM 0.20-1.50, top 30 by volume.
+   *
+   * Unlike quotes, this data does not come from Moomoo OpenD: it is crawled from
+   * KLSE Screener by the `kage-screener` sidecar, which the Laravel backend
+   * proxies. Every filter is applied during the crawl, so the response is that
+   * subset rather than the whole market. Throws on transport/provider failure so
+   * the UI can show an explicit unavailable state instead of inventing rows.
+   */
+  async screenerShariah(signal?: AbortSignal): Promise<readonly ScreenerRow[]> {
+    const response = await fetch(`${API_BASE}/screener/shariah`, { signal })
+
+    if (!response.ok) {
+      throw new ApiError(`Screener API responded ${response.status}`, response.status)
+    }
+
+    const data = (await response.json()) as BackendScreenerResponse
+    return data.rows.map(normalizeScreenerRow)
   },
 }
