@@ -2,13 +2,16 @@
 
 import { useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
-import type { ConnectionStatus, MarketOverview, MarketSession, QuoteSnapshot, ScreenerRow } from '../domain/types'
+import type { ClosedTrade, ConnectionStatus, DealHistory, MarketSession, Position, QuoteSnapshot, ScreenerRow } from '../domain/types'
 import { marketApi } from '../data/api'
 import { useMarketData } from '../lib/useMarketData'
+import { useDealLedger } from '../lib/useDealLedger'
 import { useTheme } from '../lib/useTheme'
 import { formatClock, sessionFromOpenD, sessionLabel } from '../lib/format'
-import { OverviewCards } from '../features/market-overview/OverviewCards'
+import { PortfolioCards } from '../features/market-overview/PortfolioCards'
 import { Watchlist } from '../features/quotes/Watchlist'
+import { Positions } from '../features/positions/Positions'
+import { ClosedPositions } from '../features/closed-positions/ClosedPositions'
 import { Screener } from '../features/screener/Screener'
 
 type NavKey = 'dashboard' | 'watchlist' | 'screener' | 'positions' | 'settings'
@@ -17,7 +20,7 @@ const NAV_ITEMS: readonly { key: NavKey; label: string; icon: IconName; disabled
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'watchlist', label: 'Watchlist', icon: 'watchlist' },
   { key: 'screener', label: 'Screener', icon: 'screener' },
-  { key: 'positions', label: 'Positions', icon: 'wallet', disabled: true },
+  { key: 'positions', label: 'Positions', icon: 'wallet' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
 
@@ -34,7 +37,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
     wallet: <><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H19v14H6.5A2.5 2.5 0 0 1 4 16.5Z" /><path d="M4 8h15M15 12h4" /><circle cx="15" cy="12" r=".7" fill="currentColor" stroke="none" /></>,
     settings: <><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /><circle cx="12" cy="12" r="3.5" /></>,
   }
-  return <svg className="icon" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
+  return <svg className="block" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
 function ConnectionBadge({ status }: { status: ConnectionStatus }) {
@@ -63,12 +66,52 @@ export default function App() {
     30_000,
   )
 
+  // Positions come from OpenD's trade context, a different provider path from
+  // quotes: holdings carry real figures even when the MY quote entitlement is
+  // missing. Polled on the same cadence as quotes since both are account-facing.
+  const positions = useMarketData<readonly Position[]>(
+    (signal) => marketApi.positions(signal),
+    [],
+    30_000,
+  )
+
   // The Bursa session is read from OpenD, not assumed: when OpenD reports
   // nothing usable we fall back to "closed" rather than claiming "Market Open".
   const session = useMarketData<MarketSession | null>(
     (signal) => marketApi.marketSession(signal).then(sessionFromOpenD),
     null,
     60_000,
+  )
+
+  // Deal history is the source of the Realized figure. It was briefly not —
+  // OpenD's booked `realized_pl` via `/api/market/realized` looked authoritative
+  // and was used instead — but OpenD *evicts* a sold-out position from its
+  // position query after a few days, taking the booked profit with it. On this
+  // account the booked total quietly fell to RM 248.00 while four stocks had in
+  // fact been closed for RM 475.50. The deal stream never lost them, and the
+  // derivation reproduces OpenD's booked figure exactly wherever both exist, so
+  // deals are the more complete source. Deal history is still capped at ~90 days
+  // by OpenD, which is why the card labels its scope.
+  const deals = useMarketData<DealHistory | null>(
+    (signal) => marketApi.deals(signal),
+    null,
+    5 * 60_000,
+  )
+
+  // The durable ledger: every fill moomoo has ever delivered, accrued across
+  // loads so history outlives OpenD's ~90-day window. The live feed above still
+  // drives display; this union drives the all-time Realized figure.
+  const ledger = useDealLedger(deals)
+
+  // The same deal stream, regrouped per stock: a stock whose every recorded buy
+  // has been sold again has no row in `positions()` any more. Separate state
+  // rather than a `useMemo` over `deals` so the grouping reads as its own
+  // request lifecycle — and so a failure to derive cannot be mistaken for a
+  // failure to fetch.
+  const closed = useMarketData<readonly ClosedTrade[]>(
+    (signal) => marketApi.closedPositions(signal),
+    [],
+    5 * 60_000,
   )
 
   // The screener is a separate source from OpenD: it is crawled from KLSE
@@ -86,21 +129,7 @@ export default function App() {
 
   // Breadth and session are derived from the live Moomoo quotes rather than a
   // stored or invented snapshot: no data in, no data shown.
-  const overview: MarketOverview = useMemo(() => {
-    const live = quotes.data.filter(
-      (q): q is QuoteSnapshot & { change: number } => q.available && q.change !== null,
-    )
-    const advancing = live.filter((q) => q.change > 0).length
-    const declining = live.filter((q) => q.change < 0).length
-
-    return {
-      session: session.data ?? 'closed',
-      dataSource: 'live',
-      index: { name: 'Bursa watchlist', value: live.length, change: advancing - declining, changePercent: 0 },
-      breadth: { advancing, declining, unchanged: live.length - advancing - declining },
-      updatedAt: new Date().toISOString(),
-    }
-  }, [quotes.data, session.data])
+  const marketSession: MarketSession = session.data ?? 'closed'
 
   // OpenD reports an explicit reason when MY quote rights are missing. Surface
   // it once, prominently, instead of repeating it on every row.
@@ -111,13 +140,19 @@ export default function App() {
   const pricingUnavailable = quotes.data.length > 0 && quotes.data.every((q) => !q.available)
 
   const quotesErrorBanner = quotes.error && (
-    <p className="conn-banner" role="status">
+    <p
+      className="m-0 rounded-2xl bg-negative-container px-[1.1rem] py-[0.7rem] text-[0.76rem] font-semibold text-negative"
+      role="status"
+    >
       {quotes.error} — no quote data shown.
     </p>
   )
 
   const pricingBanner = !quotes.error && pricingUnavailable && (
-    <p className="conn-banner" role="status">
+    <p
+      className="m-0 rounded-2xl bg-negative-container px-[1.1rem] py-[0.7rem] text-[0.76rem] font-semibold text-negative"
+      role="status"
+    >
       {unavailableReason}
     </p>
   )
@@ -136,7 +171,7 @@ export default function App() {
         </button>
         <div className="mr-auto flex flex-col leading-tight">
           <span className="text-[1.05rem] font-extrabold tracking-[-0.01em]">Kage</span>
-          <span className="text-[0.72rem] text-muted max-[768px]:hidden">Bursa {sessionLabel(overview.session)}{hydrated ? ` · ${formatClock(overview.updatedAt)} MYT` : ''}</span>
+          <span className="text-[0.72rem] text-muted max-[768px]:hidden">Bursa {sessionLabel(marketSession)}{hydrated ? ` · ${formatClock(new Date().toISOString())} MYT` : ''}</span>
         </div>
         <ConnectionBadge status={quotes.status} />
          <button type="button" className="grid size-10 shrink-0 place-items-center rounded-full border-0 bg-transparent text-muted transition-transform duration-300 motion-spring hover:bg-[color-mix(in_srgb,var(--m3-on-surface)_8%,transparent)] active:scale-95" onClick={toggleTheme} aria-label={hydrated ? `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme` : 'Toggle theme'}>
@@ -171,7 +206,7 @@ export default function App() {
               <p className="px-4 text-xs text-muted">Theme, data source, and OpenD configuration arrive with the backend slice.</p>
               <div className="flex items-center justify-between px-4 py-3.5 text-sm font-semibold">
                 <span>Dark theme</span>
-                 <button className="md3-settings-button chip chip--active" type="button" onClick={toggleTheme}>
+                 <button type="button" className="cursor-pointer rounded-full border border-[color-mix(in_srgb,var(--m3-outline-variant)_70%,transparent)] bg-primary px-[0.9rem] py-[0.35rem] text-[0.75rem] font-bold text-on-primary transition-[background,color,transform] duration-250 hover:bg-primary active:scale-95" onClick={toggleTheme}>
                    {theme === 'dark' ? 'Dark' : 'Light'}
                  </button>
               </div>
@@ -182,14 +217,38 @@ export default function App() {
               {pricingBanner}
               <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
             </>
+          ) : nav === 'positions' ? (
+            <>
+              <Positions positions={positions.data} status={positions.status} error={positions.error} />
+              <ClosedPositions trades={closed.data} status={closed.status} error={closed.error} />
+            </>
           ) : nav === 'screener' ? (
             <Screener rows={screener.data} status={screener.status} error={screener.error} />
           ) : (
             <>
-              <OverviewCards overview={overview} quotes={quotes.data} />
-              <div className="grid w-full min-w-0 grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start gap-6 max-[1080px]:grid-cols-1 max-[768px]:gap-4">
-                <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
-                <Screener rows={screener.data} status={screener.status} error={screener.error} />
+              <PortfolioCards
+                positions={positions.data}
+                status={positions.status}
+                error={positions.error}
+                session={marketSession}
+                deals={ledger.allDeals.length > 0 ? ledger.allDeals : null}
+              />
+              {/*
+                Left: the account's two tables stacked — what is still held, then
+                what has been sold off. They answer the same question about
+                different holdings, so reading them one above the other is how a
+                stock you own is told apart from one you are finished with.
+                Right: the screener, which is market-wide rather than
+                account-specific, spanning the full height of both.
+              */}
+              <div className="grid w-full min-w-0 grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] items-stretch gap-6 max-[1080px]:grid-cols-1">
+                <div className="flex min-w-0 min-h-0 flex-col gap-6">
+                  <Positions positions={positions.data} status={positions.status} error={positions.error} />
+                  <ClosedPositions trades={closed.data} status={closed.status} error={closed.error} />
+                </div>
+                <div className="flex min-w-0 min-h-0 flex-col">
+                  <Screener rows={screener.data} status={screener.status} error={screener.error} />
+                </div>
               </div>
               {quotesErrorBanner}
               {pricingBanner}
