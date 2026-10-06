@@ -12,6 +12,21 @@ export function formatIndex(value: number): string {
   })
 }
 
+/**
+ * A traded price, never shown with fewer than three decimals.
+ *
+ * Bursa quotes sub-RM counters in half-sen ticks (D&O at 0.555, OPPSTAR at
+ * 0.710), so a fixed two decimals silently rounds away real precision — 0.555
+ * would render as "0.56", a price that never traded. Trailing zeros are kept so
+ * a column of prices aligns on the decimal point.
+ */
+export function formatStockPrice(value: number): string {
+  return value.toLocaleString('en-MY', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
+}
+
 export function formatSigned(value: number, digits = 2): string {
   const sign = value > 0 ? '+' : value < 0 ? '−' : ''
   return `${sign}${Math.abs(value).toFixed(digits)}`
@@ -57,6 +72,31 @@ export function sessionLabel(session: MarketSession): string {
     closed: 'Market Closed',
   }
   return labels[session]
+}
+
+/**
+ * The clock window a session covers, e.g. "12:30pm – 2:30pm".
+ *
+ * **These times are a UI convention, not data from OpenD.** OpenD reports only
+ * the session *name* (`MORNING`, `REST`, `AFTERNOON`, `CLOSED`) — verified
+ * against `get_global_state`, `get_market_state`, and `request_trading_days`,
+ * none of which expose clock times, and the SDK ships no session-time table. So
+ * the windows below are Bursa Malaysia's published hours, encoded here. If the
+ * exchange ever changes them, this needs editing; it cannot self-correct.
+ *
+ * Returns null for `closed`, which has no single meaningful window — the market
+ * is shut overnight and all weekend, and printing a "9:00am – 5:00pm" range for
+ * a Saturday would imply trading that is not happening.
+ */
+export function sessionHours(session: MarketSession): string | null {
+  const hours: Record<MarketSession, string | null> = {
+    'pre-open': '8:30am – 9:00am',
+    open: '9:00am – 12:30pm',
+    'lunch-break': '12:30pm – 2:30pm',
+    afternoon: '2:30pm – 5:00pm',
+    closed: null,
+  }
+  return hours[session]
 }
 
 /**

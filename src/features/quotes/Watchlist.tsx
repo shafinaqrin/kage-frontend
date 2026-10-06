@@ -5,6 +5,22 @@ import type { ConnectionStatus, QuoteSnapshot } from '../../domain/types'
 import { formatPrice, formatSignedPercent, formatVolume } from '../../lib/format'
 import { useTableSort } from '../../lib/useSort'
 import { SortableHeader } from '../shared/SortableHeader'
+import {
+  emptyStateClass,
+  numCellClass,
+  panelClass,
+  panelHeadClass,
+  panelHeadTitleClass,
+  panelSubClass,
+  pillClass,
+  symbolButtonClass,
+  symbolCodeClass,
+  symbolNameClass,
+  tableCellClass,
+  tableClass,
+  tableScrollClass,
+  toneTextClass,
+} from '../shared/positionCells'
 
 interface WatchlistProps {
   quotes: readonly QuoteSnapshot[]
@@ -59,11 +75,11 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
   }, [sorted, query])
 
   return (
-    <section className="panel min-w-0 max-w-full" aria-label="Watchlist">
-      <header className="panel-head">
+    <section className={panelClass} aria-label="Watchlist">
+      <header className={panelHeadClass}>
         <div>
-          <h2>Watchlist</h2>
-          <p className="panel-sub">{filtered.length} of {quotes.length} symbols</p>
+          <h2 className={panelHeadTitleClass}>Watchlist</h2>
+          <p className={panelSubClass}>{filtered.length} of {quotes.length} symbols</p>
         </div>
         <label className="flex h-9 w-[10rem] max-w-full min-w-0 flex-1 items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--m3-outline-variant)_68%,transparent)] bg-[var(--m3-surface-container)] px-3 text-muted transition-[border-color,box-shadow] duration-300 motion-standard focus-within:border-[var(--m3-primary)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--m3-primary)_14%,transparent)] max-[768px]:w-full">
           <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
@@ -82,17 +98,17 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
       </header>
 
       {quotes.length === 0 ? (
-        <p className="empty-state" role="status">
+        <p className={emptyStateClass} role="status">
           {status === 'connecting'
             ? 'Loading the Bursa watchlist from Moomoo OpenD…'
             : 'No Bursa symbols are in the Moomoo OpenD watchlist. Add some in moomoo and they appear here.'}
         </p>
       ) : filtered.length === 0 ? (
-        <p className="empty-state">No symbols match “{query}”.</p>
+        <p className={emptyStateClass}>No symbols match “{query}”.</p>
       ) : (
-        <div className="table-scroll">
-          <table className="quote-table">
-            <caption className="visually-hidden">
+        <div className={tableScrollClass}>
+          <table className={tableClass}>
+            <caption className="sr-only">
               Bursa watchlist from Moomoo OpenD. Column headers are sortable.
             </caption>
             <thead>
@@ -110,32 +126,34 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
                 return (
                   <tr
                     key={q.symbol}
-                    className={`quote-row ${q.symbol === selected ? 'is-selected' : ''} ${q.available ? '' : 'is-unavailable'}`}
+                    className={`cursor-pointer transition-colors duration-[220ms] motion-standard hover:bg-[color-mix(in_srgb,var(--m3-on-surface)_6%,transparent)] ${
+                      q.symbol === selected ? 'bg-[color-mix(in_srgb,var(--m3-primary)_12%,transparent)]' : ''
+                    } ${q.available ? '' : 'opacity-55'}`}
                     onClick={() => onSelect(q.symbol)}
                     title={rowTitle}
                   >
-                    <th scope="row">
+                    <th scope="row" className={tableCellClass}>
                       <button
                         type="button"
-                        className="symbol-btn"
+                        className={symbolButtonClass}
                         onClick={() => onSelect(q.symbol)}
                         title={rowTitle}
                       >
-                        <span className="symbol-code">{q.symbol}</span>
-                        <span className="symbol-name">{q.company}</span>
+                        <span className={symbolCodeClass}>{q.symbol}</span>
+                        <span className={symbolNameClass}>{q.company}</span>
                       </button>
                     </th>
-                    <td className="num">{formatValue(q, (s) => s.last, formatPrice)}</td>
-                    <td className={`num tone-${tone}`}>
+                    <td className={`${numCellClass} ${tableCellClass}`}>{formatValue(q, (s) => s.last, formatPrice)}</td>
+                    <td className={`${numCellClass} ${tableCellClass} ${toneTextClass(tone)}`}>
                       {q.available ? (
-                        <span className={`pill tone-${tone}-bg`}>
+                        <span className={pillClass(tone)}>
                           {formatSignedPercent(q.changePercent ?? 0)}
                         </span>
                       ) : (
-                        <span className="pill tone-flat-bg">{NO_DATA}</span>
+                        <span className={pillClass('flat')}>{NO_DATA}</span>
                       )}
                     </td>
-                    <td className="num muted">{formatValue(q, (s) => s.volume, formatVolume)}</td>
+                    <td className={`${numCellClass} ${tableCellClass} text-muted`}>{formatValue(q, (s) => s.volume, formatVolume)}</td>
                   </tr>
                 )
               })}

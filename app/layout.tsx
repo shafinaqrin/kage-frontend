@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Script from 'next/script'
 import '../src/styles/tokens.css'
 import '../src/styles/tailwind.css'
-import '../src/styles/app.css'
 
 export const metadata: Metadata = {
   title: 'Kage · Bursa Intraday',
