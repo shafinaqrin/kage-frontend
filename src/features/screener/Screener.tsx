@@ -223,7 +223,7 @@ export function Screener(props: ScreenerProps) {
           {variant === 'full' && (
             <button
               type="button"
-              className="grid size-9 place-items-center rounded-full border border-[color-mix(in_srgb,var(--m3-outline-variant)_55%,transparent)] text-muted transition-[background,color,transform,opacity] duration-200 motion-standard hover:bg-[color-mix(in_srgb,var(--m3-on-surface)_8%,transparent)] active:scale-90 disabled:opacity-45 disabled:cursor-not-allowed"
+              className="grid size-9 place-items-center rounded-full border border-[var(--negative)] bg-[var(--negative)] text-white transition-[background,color,transform,opacity] duration-200 motion-standard hover:bg-[color-mix(in_srgb,var(--negative)_86%,black)] active:scale-90 disabled:opacity-45 disabled:cursor-not-allowed"
               title="Open deleted stocks"
               aria-label="Open deleted stocks"
               onClick={() => setDeletedOpen(true)}
