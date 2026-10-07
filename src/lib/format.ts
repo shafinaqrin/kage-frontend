@@ -63,6 +63,38 @@ export function formatClock(iso: string): string {
   })
 }
 
+/** How old screener data must be before the UI flags it stale (7 days). */
+export const SCREENER_MAX_AGE_MS = 7 * 24 * 60 * 60_000
+
+/**
+ * The date the screener data was fetched, in MYT.
+ *
+ * `fetchedAt` is the epoch-ms timestamp stamped by the kage-screener sidecar
+ * when it crawled (or served from cache). Rendered without a year when it is
+ * the current year, so the sub-line reads "Data: 7 Oct, 9:41am".
+ */
+export function formatFetchedAt(ms: number): string {
+  const date = new Date(ms)
+  const sameYear = date.getFullYear() === new Date().getFullYear()
+  const day = date.toLocaleDateString('en-MY', {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Kuala_Lumpur',
+  })
+  const time = date.toLocaleTimeString('en-MY', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'Asia/Kuala_Lumpur',
+  })
+  const year = sameYear ? '' : `, ${date.getFullYear()}`
+  return `${day}${year}, ${time}`
+}
+
+/** True when the fetched-at timestamp is older than a week and should warn. */
+export function screenerIsStale(ms: number | null, now = Date.now()): boolean {
+  return ms !== null && now - ms > SCREENER_MAX_AGE_MS
+}
+
 export function sessionLabel(session: MarketSession): string {
   const labels: Record<MarketSession, string> = {
     'pre-open': 'Pre-Open',

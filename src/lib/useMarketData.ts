@@ -10,12 +10,12 @@ interface MarketState<T> {
 }
 
 export function useMarketData<T>(
-  fetcher: (signal: AbortSignal) => Promise<T>,
+  fetcher: (signal: AbortSignal, refresh?: boolean) => Promise<T>,
   initial: T,
   pollMs?: number,
   /** Changing this string refetches immediately (e.g. `symbol|timeframe`). */
   requestKey = '',
-): MarketState<T> & { refresh: () => void } {
+): MarketState<T> & { refresh: (force?: boolean) => Promise<void> } {
   const [state, setState] = useState<MarketState<T>>({
     data: initial,
     status: 'connecting',
@@ -24,9 +24,9 @@ export function useMarketData<T>(
   const fetcherRef = useRef(fetcher)
   fetcherRef.current = fetcher
 
-  const load = useCallback(async (signal: AbortSignal) => {
+  const load = useCallback(async (signal: AbortSignal, force = false) => {
     try {
-      const data = await fetcherRef.current(signal)
+      const data = await fetcherRef.current(signal, force)
       setState({ data, status: 'connected', error: null })
     } catch (error) {
       if (signal.aborted) return
@@ -51,9 +51,9 @@ export function useMarketData<T>(
     }
   }, [load, pollMs, requestKey])
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((force = false) => {
     const controller = new AbortController()
-    void load(controller.signal)
+    return load(controller.signal, force)
   }, [load])
 
   return { ...state, refresh }

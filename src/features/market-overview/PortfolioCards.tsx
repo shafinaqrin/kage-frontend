@@ -1,5 +1,5 @@
 import type { ConnectionStatus, Deal, MarketSession, Position } from '../../domain/types'
-import { formatPrice, formatSigned, formatSignedPercent, sessionHours, sessionLabel } from '../../lib/format'
+import { formatPrice, formatSigned, sessionHours, sessionLabel } from '../../lib/format'
 import { computeRealizedPnl, computeWinRateFromSymbols } from './realized'
 
 interface PortfolioCardsProps {
@@ -144,10 +144,9 @@ function money(currency: string | null, value: number | null, signed = false): s
  * The screener and quote paths are not consulted here: neither can value the
  * account's holdings.
  *
- * Open and closed P/L are shown separately rather than summed. They are
- * different kinds of number — one moves with the market, the other is already
- * banked — and a single combined total would hide that distinction behind one
- * misleading figure.
+ * Open and closed P/L are shown separately, while NETT PROFIT is derived live
+ * as Realized plus Open P/L. Open P/L is signed, so a negative open loss is
+ * added back as a negative amount (for example 665.50 + -143.50 = 522.00).
  *
  * Every card is a *portfolio-wide* total, not a day's move: Open P/L sums each
  * holding's total unrealized gain, Cost basis is everything paid, and Realized
@@ -212,7 +211,7 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         aria-label="Market session"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Session</p>
-        <p className="my-1 truncate text-[1.45rem] font-extrabold tracking-[-0.03em]">
+        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em]">
           {sessionLabel(session)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
@@ -236,7 +235,7 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         aria-label="Realized profit and loss"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Realized</p>
-        <p className="my-1 truncate text-[1.45rem] font-extrabold tracking-[-0.03em] tabular-nums">
+        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em] tabular-nums">
           {money(BURSA_CURRENCY, realizedTotal, true)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
@@ -270,24 +269,26 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
           {money(totals.currency, totals.profitLoss, true)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
-          {totals.profitLossPercent === null
-            ? unavailable
-            : `${formatSignedPercent(totals.profitLossPercent)} on cost · ${holdings} holding${holdings === 1 ? '' : 's'}`}
+          {totals.costBasis === null ? unavailable : `Cost basis • ${money(totals.currency, totals.costBasis)}`}
         </p>
       </article>
 
-      {/*
-        No caption by request: just the label and the figure. The cost basis is a
-        static figure of what was paid, so the day-to-day context it used to
-        carry was noise on a card whose only job is the number.
-      */}
       <article
-        className={`${headline} border border-transparent bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]`}
-        aria-label="Cost basis"
+        className={`${headline} border border-transparent ${
+          realizedTotal === null || totals.profitLoss === null || realizedTotal + totals.profitLoss === 0
+            ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
+            : realizedTotal + totals.profitLoss > 0
+              ? 'bg-[var(--positive-container)] text-[var(--positive)]'
+              : 'bg-[var(--negative-container)] text-[var(--negative)]'
+        }`}
+        aria-label="Nett profit"
       >
-        <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Cost basis</p>
-        <p className="my-1 truncate text-[1.45rem] font-extrabold tracking-[-0.03em] tabular-nums">
-          {money(totals.currency, totals.costBasis)}
+        <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">NETT PROFIT</p>
+        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em] tabular-nums">
+          {money(BURSA_CURRENCY, realizedTotal === null || totals.profitLoss === null ? null : realizedTotal + totals.profitLoss, true)}
+        </p>
+        <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
+          {realizedTotal === null || totals.profitLoss === null ? 'Waiting for Realized and Open P/L' : 'Realized + Open P/L'}
         </p>
       </article>
 

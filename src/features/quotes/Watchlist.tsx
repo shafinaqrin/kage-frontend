@@ -5,6 +5,7 @@ import type { ConnectionStatus, QuoteSnapshot } from '../../domain/types'
 import { formatPrice, formatSignedPercent, formatVolume } from '../../lib/format'
 import { useTableSort } from '../../lib/useSort'
 import { SortableHeader } from '../shared/SortableHeader'
+import { Icon } from '../shared/Icon'
 import {
   emptyStateClass,
   numCellClass,
@@ -82,10 +83,7 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
           <p className={panelSubClass}>{filtered.length} of {quotes.length} symbols</p>
         </div>
         <label className="flex h-9 w-[10rem] max-w-full min-w-0 flex-1 items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--m3-outline-variant)_68%,transparent)] bg-[var(--m3-surface-container)] px-3 text-muted transition-[border-color,box-shadow] duration-300 motion-standard focus-within:border-[var(--m3-primary)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--m3-primary)_14%,transparent)] max-[768px]:w-full">
-          <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="6.5" />
-            <path d="m16 16 4 4" />
-          </svg>
+          <Icon name="search" size={16} />
           <input
             type="search"
             className="min-w-0 flex-1 border-0 bg-transparent p-0 text-xs text-ink outline-none placeholder:text-muted/70"

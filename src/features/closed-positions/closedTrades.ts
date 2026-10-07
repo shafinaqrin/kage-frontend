@@ -98,11 +98,12 @@ function summarise(symbol: string, fills: readonly Deal[]): ClosedTrade | null {
   // holds, so it is reported as unknown rather than as a too-low number.
   const cost = averageCost(buys, boughtQuantity)
 
-  // Proceeds come from the final sell alone: that is the exit, and the price the
-  // user last saw this stock trade at on their own account.
+  // A closed position may be completed by several sell fills. Sum every sell
+  // fill: using only the final fill undercounts proceeds (and can turn a real
+  // profit into a displayed loss).
   const proceeds =
-    lastSell?.quantity !== null && lastSell?.quantity !== undefined && lastSell.price !== null
-      ? lastSell.quantity * lastSell.price
+    sells.length > 0 && sells.every((sell) => sell.quantity !== null && sell.price !== null)
+      ? sells.reduce((total, sell) => total + (sell.quantity ?? 0) * (sell.price ?? 0), 0)
       : null
 
   const profitLoss =

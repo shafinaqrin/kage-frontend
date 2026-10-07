@@ -1,5 +1,16 @@
 import { deriveClosedTrades } from '../features/closed-positions/closedTrades'
-import type { ClosedTrade, Deal, DealHistory, Position, QuoteSnapshot, RealizedPosition, ScreenerRow, WatchlistEntry } from '../domain/types'
+import type {
+  ClosedTrade,
+  Deal,
+  DealHistory,
+  HiddenScreenerEntry,
+  Position,
+  QuoteSnapshot,
+  RealizedPosition,
+  ScreenerResult,
+  ScreenerRow,
+  WatchlistEntry,
+} from '../domain/types'
 
 export class ApiError extends Error {
   constructor(
@@ -164,6 +175,16 @@ interface BackendScreenerResponse {
   count: number
   fetchedAt: number | null
   rows: BackendScreenerRow[]
+}
+
+/** A stock the user hid from the screener, as stored by the backend. */
+interface BackendHiddenRow {
+  code: string
+  name: string
+}
+
+interface BackendScreenerHiddenResponse {
+  rows: BackendHiddenRow[]
 }
 
 /**
@@ -513,17 +534,79 @@ export const marketApi = {
    * Unlike quotes, this data does not come from Moomoo OpenD: it is crawled from
    * KLSE Screener by the `kage-screener` sidecar, which the Laravel backend
    * proxies. Every filter is applied during the crawl, so the response is that
-   * subset rather than the whole market. Throws on transport/provider failure so
-   * the UI can show an explicit unavailable state instead of inventing rows.
+   * subset rather than the whole market, and any code the user has hidden is
+   * excluded before it reaches the client. Setting `force` asks the sidecar to
+   * re-crawl instead of serving its cache — this is the only path that triggers
+   * a crawl, so page loads never hammer the upstream site.
+   *
+   * Throws on transport/provider failure so the UI can show an explicit
+   * unavailable state instead of inventing rows. Alongside the rows it returns
+   * the `fetchedAt` stamp the sidecar recorded, so the UI can say when the data
+   * was collected and warn when it goes stale.
    */
-  async screenerShariah(signal?: AbortSignal): Promise<readonly ScreenerRow[]> {
-    const response = await fetch(`${API_BASE}/screener/shariah`, { signal })
+  async screenerShariah(signal?: AbortSignal, force = false): Promise<ScreenerResult> {
+    const query = force ? '?refresh=1' : ''
+    const response = await fetch(`${API_BASE}/screener/shariah${query}`, { signal })
 
     if (!response.ok) {
       throw new ApiError(`Screener API responded ${response.status}`, response.status)
     }
 
     const data = (await response.json()) as BackendScreenerResponse
-    return data.rows.map(normalizeScreenerRow)
+    return {
+      rows: data.rows.map(normalizeScreenerRow),
+      fetchedAt: data.fetchedAt,
+    }
+  },
+
+  /**
+   * Every stock the user has hidden from the screener, in hide order.
+   */
+  async hiddenScreener(signal?: AbortSignal): Promise<readonly HiddenScreenerEntry[]> {
+    const response = await fetch(`${API_BASE}/screener/hidden`, { signal })
+
+    if (!response.ok) {
+      throw new ApiError(`Hidden screener API responded ${response.status}`, response.status)
+    }
+
+    const data = (await response.json()) as BackendScreenerHiddenResponse
+    return data.rows.map((row) => ({
+      code: row.code,
+      name: row.name || row.code,
+    }))
+  },
+
+  /**
+   * Hide one stock so it stops appearing in the screener.
+   *
+   * Idempotent by code: hiding an already-hidden stock is a no-op. The name is
+   * captured at hide time so the "deleted" modal can label the row without a
+   * re-crawl.
+   */
+  async hideScreener(code: string, name: string, signal?: AbortSignal): Promise<void> {
+    const response = await fetch(`${API_BASE}/screener/hidden`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, name }),
+      signal,
+    })
+
+    if (!response.ok) {
+      throw new ApiError(`Hide screener API responded ${response.status}`, response.status)
+    }
+  },
+
+  /**
+   * Restore a hidden stock so a future crawl may include it again.
+   */
+  async restoreScreener(code: string, signal?: AbortSignal): Promise<void> {
+    const response = await fetch(`${API_BASE}/screener/hidden/${encodeURIComponent(code)}`, {
+      method: 'DELETE',
+      signal,
+    })
+
+    if (!response.ok) {
+      throw new ApiError(`Restore screener API responded ${response.status}`, response.status)
+    }
   },
 }

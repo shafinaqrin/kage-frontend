@@ -188,3 +188,21 @@ export interface ScreenerRow {
   readonly ptbv: number | null
   readonly marketCap: number | null
 }
+
+/**
+ * A screener fetch: the filtered rows plus when the data was collected.
+ *
+ * `fetchedAt` is the epoch-ms timestamp the kage-screener sidecar stamped when
+ * it crawled (or served from cache). The UI shows it as the "data date" and
+ * warns when it ages past a week.
+ */
+export interface ScreenerResult {
+  readonly rows: readonly ScreenerRow[]
+  readonly fetchedAt: number | null
+}
+
+/** One stock the user has hidden from the screener, for the "deleted" modal. */
+export interface HiddenScreenerEntry {
+  readonly code: string
+  readonly name: string
+}

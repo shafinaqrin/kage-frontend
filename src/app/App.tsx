@@ -1,8 +1,16 @@
  'use client'
 
-import { useMemo, useState } from 'react'
-import type { ReactElement } from 'react'
-import type { ClosedTrade, ConnectionStatus, DealHistory, MarketSession, Position, QuoteSnapshot, ScreenerRow } from '../domain/types'
+import { useCallback, useEffect, useState } from 'react'
+import type {
+  ClosedTrade,
+  ConnectionStatus,
+  DealHistory,
+  HiddenScreenerEntry,
+  MarketSession,
+  Position,
+  QuoteSnapshot,
+  ScreenerResult,
+} from '../domain/types'
 import { marketApi } from '../data/api'
 import { useMarketData } from '../lib/useMarketData'
 import { useDealLedger } from '../lib/useDealLedger'
@@ -13,6 +21,8 @@ import { Watchlist } from '../features/quotes/Watchlist'
 import { Positions } from '../features/positions/Positions'
 import { ClosedPositions } from '../features/closed-positions/ClosedPositions'
 import { Screener } from '../features/screener/Screener'
+import { Icon } from '../features/shared/Icon'
+import type { IconName } from '../features/shared/Icon'
 
 type NavKey = 'dashboard' | 'watchlist' | 'screener' | 'positions' | 'settings'
 
@@ -20,25 +30,9 @@ const NAV_ITEMS: readonly { key: NavKey; label: string; icon: IconName; disabled
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'watchlist', label: 'Watchlist', icon: 'watchlist' },
   { key: 'screener', label: 'Screener', icon: 'screener' },
-  { key: 'positions', label: 'Positions', icon: 'wallet' },
+  { key: 'positions', label: 'Positions', icon: 'positions' },
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ]
-
-type IconName = 'menu' | 'sun' | 'moon' | 'dashboard' | 'watchlist' | 'screener' | 'wallet' | 'settings'
-
-function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
-  const paths: Record<IconName, ReactElement> = {
-    menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
-    sun: <><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" /></>,
-    moon: <path d="M19.2 14.3A7.8 7.8 0 0 1 9.7 4.8a8 8 0 1 0 9.5 9.5Z" />,
-    dashboard: <><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></>,
-    watchlist: <><path d="M5 6.5h14M5 12h14M5 17.5h9" /><circle cx="4" cy="6.5" r=".7" fill="currentColor" stroke="none" /><circle cx="4" cy="12" r=".7" fill="currentColor" stroke="none" /><circle cx="4" cy="17.5" r=".7" fill="currentColor" stroke="none" /></>,
-    screener: <><path d="M4 5h16l-6 7v5.5l-4 2V12Z" /></>,
-    wallet: <><path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H19v14H6.5A2.5 2.5 0 0 1 4 16.5Z" /><path d="M4 8h15M15 12h4" /><circle cx="15" cy="12" r=".7" fill="currentColor" stroke="none" /></>,
-    settings: <><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /><circle cx="12" cy="12" r="3.5" /></>,
-  }
-  return <svg className="block" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
-}
 
 function ConnectionBadge({ status }: { status: ConnectionStatus }) {
   const label =
@@ -115,47 +109,68 @@ export default function App() {
   )
 
   // The screener is a separate source from OpenD: it is crawled from KLSE
-  // Screener by the kage-screener sidecar and already filtered to Shariah names.
-  // Slower-moving than quotes, so it is polled far less often.
-  const screener = useMarketData<readonly ScreenerRow[]>(
-    (signal) => marketApi.screenerShariah(signal),
-    [],
-    15 * 60_000,
+  // Screener by the kage-screener sidecar and already filtered to Shariah
+  // names. It does NOT auto-refresh: it loads the sidecar's cached crawl once
+  // and is only re-crawled when the user presses refresh on the screener page.
+  // Both the dashboard and the screener page read this same shared state, so
+  // the dashboard always shows exactly what the screener page last collected.
+  const screener = useMarketData<ScreenerResult>(
+    (signal, force) => marketApi.screenerShariah(signal, force),
+    { rows: [], fetchedAt: null },
   )
+
+  // The stocks the user has hidden from the screener. Deletions persist on the
+  // backend so they survive a re-crawl; loading them once here (and after each
+  // change) keeps the "deleted" modal and the served set in sync.
+  const [hiddenRows, setHiddenRows] = useState<readonly HiddenScreenerEntry[]>([])
+  const reloadHidden = useCallback(async () => {
+    const loaded = await marketApi.hiddenScreener()
+    setHiddenRows(loaded)
+  }, [])
+  useEffect(() => {
+    void reloadHidden()
+  }, [reloadHidden])
+
+  const handleScreenerRefresh = useCallback(async () => {
+    await screener.refresh(true)
+  }, [screener])
+
+  const handleHideScreener = useCallback(async (code: string, name: string) => {
+    await marketApi.hideScreener(code, name)
+    await reloadHidden()
+    // The backend excludes hidden codes from `/screener/shariah`, so re-reading
+    // the (still cached) feed drops this row from the visible list without a
+    // new crawl.
+    await screener.refresh(false)
+  }, [reloadHidden, screener])
+
+  const handleRestoreScreener = useCallback(async (code: string) => {
+    await marketApi.restoreScreener(code)
+    await reloadHidden()
+    // The backend includes the restored code in `/screener/shariah` again, so
+    // re-reading the (still cached) feed brings the row back into the current
+    // view without waiting for the next crawl.
+    await screener.refresh(false)
+  }, [reloadHidden, screener])
 
   const symbol = selectedSymbol ?? quotes.data[0]?.symbol ?? ''
 
   const handleSelect = (next: string) => setSelectedSymbol(next)
 
+  // Disable the browser's native right-click (context) menu everywhere. Custom
+  // menus (e.g. the screener row actions) are unaffected: they call
+  // `preventDefault()` in their own handler and this listener only stops the
+  // OS/browser menu from appearing behind them.
+  useEffect(() => {
+    const suppress = (event: globalThis.MouseEvent) => event.preventDefault()
+    window.addEventListener('contextmenu', suppress)
+    return () => window.removeEventListener('contextmenu', suppress)
+  }, [])
+
   // Breadth and session are derived from the live Moomoo quotes rather than a
   // stored or invented snapshot: no data in, no data shown.
   const marketSession: MarketSession = session.data ?? 'closed'
 
-  // OpenD reports an explicit reason when MY quote rights are missing. Surface
-  // it once, prominently, instead of repeating it on every row.
-  const unavailableReason = useMemo(
-    () => quotes.data.find((q) => !q.available)?.reason ?? quotes.error ?? null,
-    [quotes.data, quotes.error],
-  )
-  const pricingUnavailable = quotes.data.length > 0 && quotes.data.every((q) => !q.available)
-
-  const quotesErrorBanner = quotes.error && (
-    <p
-      className="m-0 rounded-2xl bg-negative-container px-[1.1rem] py-[0.7rem] text-[0.76rem] font-semibold text-negative"
-      role="status"
-    >
-      {quotes.error} — no quote data shown.
-    </p>
-  )
-
-  const pricingBanner = !quotes.error && pricingUnavailable && (
-    <p
-      className="m-0 rounded-2xl bg-negative-container px-[1.1rem] py-[0.7rem] text-[0.76rem] font-semibold text-negative"
-      role="status"
-    >
-      {unavailableReason}
-    </p>
-  )
 
   return (
     <div className="min-h-[100dvh] w-full overflow-x-hidden bg-surface bg-[radial-gradient(circle_at_72%_-10%,color-mix(in_srgb,var(--m3-primary-container)_42%,transparent),transparent_28rem)] text-ink">
@@ -212,18 +227,24 @@ export default function App() {
               </div>
             </section>
           ) : nav === 'watchlist' ? (
-            <>
-              {quotesErrorBanner}
-              {pricingBanner}
-              <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
-            </>
+            <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
           ) : nav === 'positions' ? (
             <>
               <Positions positions={positions.data} status={positions.status} error={positions.error} />
               <ClosedPositions trades={closed.data} status={closed.status} error={closed.error} />
             </>
           ) : nav === 'screener' ? (
-            <Screener rows={screener.data} status={screener.status} error={screener.error} />
+            <Screener
+              variant="full"
+              rows={screener.data.rows}
+              fetchedAt={screener.data.fetchedAt}
+              status={screener.status}
+              error={screener.error}
+              onRefresh={handleScreenerRefresh}
+              hidden={hiddenRows}
+              onDelete={handleHideScreener}
+              onRestore={handleRestoreScreener}
+            />
           ) : (
             <>
               <PortfolioCards
@@ -247,11 +268,15 @@ export default function App() {
                   <ClosedPositions trades={closed.data} status={closed.status} error={closed.error} />
                 </div>
                 <div className="flex min-w-0 min-h-0 flex-col">
-                  <Screener rows={screener.data} status={screener.status} error={screener.error} />
+                  <Screener
+                    variant="compact"
+                    rows={screener.data.rows}
+                    fetchedAt={screener.data.fetchedAt}
+                    status={screener.status}
+                    error={screener.error}
+                  />
                 </div>
               </div>
-              {quotesErrorBanner}
-              {pricingBanner}
             </>
           )}
         </main>

@@ -24,6 +24,8 @@ up: network ## Rebuild and start the frontend container
 	-@DOCKER_CONTEXT=$(DOCKER_CONTEXT) $(COMPOSE) rm -s -f frontend
 	DOCKER_CONTEXT=$(DOCKER_CONTEXT) $(DOCKER_ENV) $(COMPOSE) up -d --build
 
+frontend: up ## Rebuild and restart the frontend after frontend changes
+
 down: ## Stop the frontend container
 	DOCKER_CONTEXT=$(DOCKER_CONTEXT) $(COMPOSE) rm -s -f frontend
 

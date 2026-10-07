@@ -58,12 +58,17 @@ export default {
           from: { opacity: '0', transform: 'translateY(-0.35rem)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        spin: {
+          from: { transform: 'rotate(0turn)' },
+          to: { transform: 'rotate(1turn)' },
+        },
       },
       animation: {
         'pulse-opacity': 'pulse-opacity 1.4s var(--ease-standard) infinite',
         'surface-in': 'surface-in 700ms var(--ease-standard) both',
         'fade-in': 'fade-in 240ms var(--ease-standard)',
         'detail-in': 'detail-in 320ms var(--ease-standard) both',
+        spin: 'spin 900ms linear infinite',
       },
     },
   },
