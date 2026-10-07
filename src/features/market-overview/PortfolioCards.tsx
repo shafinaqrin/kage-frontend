@@ -198,6 +198,10 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
 
   const headline =
     'min-w-0 rounded-[1.6rem] p-5 shadow-[0_1rem_2.5rem_color-mix(in_srgb,var(--m3-on-surface)_5%,transparent)]'
+  const cardValue =
+    'my-1 whitespace-normal break-words text-[clamp(1.05rem,7vw,2rem)] font-extrabold tracking-[-0.03em] max-[768px]:text-[clamp(1rem,6vw,1.55rem)]'
+  const cardCaption =
+    'm-0 whitespace-normal break-words pb-1 text-[0.74rem] font-semibold opacity-90'
 
   const nettProfit = realizedTotal === null || totals.profitLoss === null ? null : realizedTotal + totals.profitLoss
 
@@ -213,10 +217,10 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         aria-label="Market session"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Session</p>
-        <p className="my-1 whitespace-normal break-words text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em]">
+        <p className={cardValue}>
           {sessionLabel(session)}
         </p>
-        <p className="m-0 whitespace-normal break-words pb-1 text-[0.74rem] font-semibold opacity-90">
+        <p className={cardCaption}>
           {sessionHours(session) ?? `${holdings} holding${holdings === 1 ? '' : 's'} in the Moomoo account`}
         </p>
       </article>
@@ -237,10 +241,10 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         aria-label="Realized profit and loss"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Realized</p>
-        <p className="my-1 whitespace-normal break-words text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em] tabular-nums">
+        <p className={`${cardValue} tabular-nums`}>
           {money(BURSA_CURRENCY, realizedTotal, true)}
         </p>
-        <p className="m-0 whitespace-normal break-words pb-1 text-[0.74rem] font-semibold opacity-90">
+        <p className={cardCaption}>
           {deals === null
             ? 'Loading closed trades from the ledger…'
             : realizedTotal === null
@@ -267,10 +271,10 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         aria-label="Open profit and loss"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Open P/L</p>
-        <p className="my-1 whitespace-normal break-words text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em] tabular-nums">
+        <p className={`${cardValue} tabular-nums`}>
           {money(totals.currency, totals.profitLoss, true)}
         </p>
-        <p className="m-0 whitespace-normal break-words pb-1 text-[0.74rem] font-semibold opacity-90">
+        <p className={cardCaption}>
           {totals.costBasis === null ? unavailable : `Cost basis • ${money(totals.currency, totals.costBasis)}`}
         </p>
       </article>
@@ -286,10 +290,10 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         aria-label="Nett profit"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">NETT PROFIT</p>
-        <p className="my-1 whitespace-normal break-words text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em] tabular-nums">
+        <p className={`${cardValue} tabular-nums`}>
           {money(BURSA_CURRENCY, nettProfit, true)}
         </p>
-        <p className="m-0 whitespace-normal break-words pb-1 text-[0.74rem] font-semibold opacity-90">
+        <p className={cardCaption}>
           {realizedTotal === null || totals.profitLoss === null ? 'Waiting for Realized and Open P/L' : 'Realized + Open P/L'}
         </p>
       </article>
