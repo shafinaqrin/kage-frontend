@@ -214,7 +214,7 @@ export default function App() {
             ))}
           </ul>
         </nav>
-        <main className="flex min-w-0 w-full max-w-full flex-1 flex-col gap-6 px-9 pb-16 pt-8 max-[768px]:gap-4 max-[768px]:px-3.5 max-[768px]:pb-24 max-[768px]:pt-4" id="main">
+        <main className="flex min-w-0 w-full max-w-full flex-1 flex-col gap-6 px-9 pb-16 pt-8 max-[768px]:gap-4 max-[768px]:px-3.5 max-[768px]:pb-[calc(6rem+env(safe-area-inset-bottom))] max-[768px]:pt-4" id="main">
           {nav === 'settings' ? (
             <section className="min-w-0 max-w-full rounded-[1.6rem] border border-[color-mix(in_srgb,var(--m3-outline-variant)_45%,transparent)] bg-[color-mix(in_srgb,var(--m3-on-surface)_4%,transparent)] p-2 shadow-[0_1rem_2.5rem_color-mix(in_srgb,var(--m3-on-surface)_5%,transparent)]" aria-label="Settings">
               <h2 className="px-4 pt-3 text-base font-bold">Settings</h2>

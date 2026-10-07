@@ -23,6 +23,11 @@
     background: var(--m3-surface);
     color: var(--m3-on-surface);
     transition: background 500ms var(--ease-standard), color 500ms var(--ease-standard);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #root {
+    isolation: isolate;
   }
 
   button,
@@ -46,11 +51,26 @@
   }
 }
 
+@media (max-width: 768px) {
+  html {
+    font-size: 15px;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

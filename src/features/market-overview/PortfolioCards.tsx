@@ -199,6 +199,8 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
   const headline =
     'min-w-0 rounded-[1.6rem] p-5 shadow-[0_1rem_2.5rem_color-mix(in_srgb,var(--m3-on-surface)_5%,transparent)]'
 
+  const nettProfit = realizedTotal === null || totals.profitLoss === null ? null : realizedTotal + totals.profitLoss
+
   return (
     <div className="grid w-full min-w-0 grid-cols-4 gap-4 max-[1080px]:grid-cols-2 max-[768px]:grid-cols-1">
       {/*
@@ -207,11 +209,11 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
         so it reads before the money cards rather than after them.
       */}
       <article
-        className={`${headline} border border-transparent bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)]`}
+        className={`${headline} min-w-0 border border-transparent bg-[var(--m3-tertiary-container)] text-[var(--m3-on-tertiary-container)] max-[768px]:p-4`}
         aria-label="Market session"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Session</p>
-        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em]">
+        <p className="my-1 truncate text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em]">
           {sessionLabel(session)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
@@ -231,11 +233,11 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
             : realizedTotal > 0
               ? 'bg-[var(--positive-container)] text-[var(--positive)]'
               : 'bg-[var(--negative-container)] text-[var(--negative)]'
-        }`}
+        } max-[768px]:p-4`}
         aria-label="Realized profit and loss"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Realized</p>
-        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em] tabular-nums">
+        <p className="my-1 truncate text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em] tabular-nums">
           {money(BURSA_CURRENCY, realizedTotal, true)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
@@ -261,11 +263,11 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
             : totals.profitLoss > 0
               ? 'bg-[var(--positive-container)] text-[var(--positive)]'
               : 'bg-[var(--negative-container)] text-[var(--negative)]'
-        }`}
+        } max-[768px]:p-4`}
         aria-label="Open profit and loss"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">Open P/L</p>
-        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em] tabular-nums">
+        <p className="my-1 truncate text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em] tabular-nums">
           {money(totals.currency, totals.profitLoss, true)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
@@ -275,17 +277,17 @@ export function PortfolioCards({ positions, status, error, session, deals }: Por
 
       <article
         className={`${headline} border border-transparent ${
-          realizedTotal === null || totals.profitLoss === null || realizedTotal + totals.profitLoss === 0
+          nettProfit === null || nettProfit === 0
             ? 'bg-[var(--m3-secondary-container)] text-[var(--m3-on-secondary-container)]'
-            : realizedTotal + totals.profitLoss > 0
+            : nettProfit > 0
               ? 'bg-[var(--positive-container)] text-[var(--positive)]'
               : 'bg-[var(--negative-container)] text-[var(--negative)]'
-        }`}
+        } max-[768px]:p-4`}
         aria-label="Nett profit"
       >
         <p className="m-0 text-[0.68rem] font-bold uppercase tracking-[0.16em] opacity-80">NETT PROFIT</p>
-        <p className="my-1 truncate text-[2rem] font-extrabold tracking-[-0.03em] tabular-nums">
-          {money(BURSA_CURRENCY, realizedTotal === null || totals.profitLoss === null ? null : realizedTotal + totals.profitLoss, true)}
+        <p className="my-1 truncate text-[clamp(1.55rem,7vw,2rem)] font-extrabold tracking-[-0.03em] tabular-nums">
+          {money(BURSA_CURRENCY, nettProfit, true)}
         </p>
         <p className="m-0 truncate pb-1 text-[0.74rem] font-semibold opacity-90">
           {realizedTotal === null || totals.profitLoss === null ? 'Waiting for Realized and Open P/L' : 'Realized + Open P/L'}

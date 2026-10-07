@@ -1,0 +1,19 @@
+{
+  "name": "Kage — Bursa Intraday",
+  "short_name": "Kage",
+  "description": "Material 3 intraday dashboard for Bursa Malaysia monitoring.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f9ff",
+  "theme_color": "#4f5f92",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
