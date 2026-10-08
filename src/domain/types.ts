@@ -8,10 +8,12 @@ export type TrendDirection = 'up' | 'down' | 'flat'
 export interface WatchlistEntry {
   readonly symbol: string
   readonly company: string
+  readonly category: string
 }
 
 export interface QuoteSnapshot {
   readonly symbol: string
+  readonly category?: string
   readonly company: string
   /** False when Moomoo OpenD has no data/permission — the UI shows "—". */
   readonly available: boolean
@@ -53,6 +55,9 @@ export interface Position {
    * missing day move renders "—" rather than a fabricated 0.
    */
   readonly todayProfitLoss: number | null
+  /** Current working-order take-profit and stop-loss prices, when available. */
+  readonly takeProfit: number | null
+  readonly stopLoss: number | null
   readonly trend: TrendDirection
 }
 

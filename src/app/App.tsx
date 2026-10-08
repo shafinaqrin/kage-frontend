@@ -51,13 +51,20 @@ export default function App() {
   const [nav, setNav] = useState<NavKey>('dashboard')
   const [railOpen, setRailOpen] = useState(false)
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
+  const [watchlistGroup, setWatchlistGroup] = useState('MY')
+  const watchlistGroups = useMarketData<readonly string[]>(
+    (signal) => marketApi.watchlistGroups(signal),
+    ['MY'],
+    5 * 60_000,
+  )
 
   // The watchlist (and therefore the symbol set) is owned by OpenD: the client
   // never holds its own copy of the codes.
   const quotes = useMarketData<readonly QuoteSnapshot[]>(
-    (signal) => marketApi.quotes(signal),
+    (signal) => marketApi.quotes(watchlistGroup, signal),
     [],
     30_000,
+    watchlistGroup,
   )
 
   // Positions come from OpenD's trade context, a different provider path from
@@ -227,7 +234,15 @@ export default function App() {
               </div>
             </section>
           ) : nav === 'watchlist' ? (
-            <Watchlist quotes={quotes.data} selected={symbol} onSelect={handleSelect} status={quotes.status} />
+            <Watchlist
+              quotes={quotes.data}
+              selected={symbol}
+              onSelect={handleSelect}
+              status={quotes.status}
+              groups={watchlistGroups.data}
+              selectedGroup={watchlistGroup}
+              onGroupChange={setWatchlistGroup}
+            />
           ) : nav === 'positions' ? (
             <>
               <Positions positions={positions.data} status={positions.status} error={positions.error} />

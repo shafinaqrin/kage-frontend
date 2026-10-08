@@ -28,6 +28,7 @@ const API_BASE = '/api'
 interface BackendQuote {
   symbol: string
   name: string | null
+  category?: string | null
   market: string
   currency: string
   available: boolean
@@ -54,11 +55,18 @@ interface BackendWatchlistRow {
   symbol: string
   name: string | null
   market: string
+  category?: string | null
 }
 
 interface BackendWatchlistResponse {
   source: string
+  group?: string
   symbols: BackendWatchlistRow[]
+}
+
+interface BackendWatchlistGroupsResponse {
+  source: string
+  groups: string[]
 }
 
 /** Provider health, including the live Bursa session as reported by OpenD. */
@@ -82,6 +90,8 @@ interface BackendPosition {
   profitLoss: number | null
   profitLossPercent: number | null
   todayProfitLoss: number | null
+  takeProfit: number | null
+  stopLoss: number | null
 }
 
 interface BackendPositionsResponse {
@@ -214,6 +224,7 @@ function normalizeQuote(quote: BackendQuote): QuoteSnapshot {
 
   return {
     symbol: quote.symbol,
+    category: quote.category ?? undefined,
     company: quote.name ?? quote.symbol,
     available: true,
     last: quote.last,
@@ -227,10 +238,11 @@ function normalizeQuote(quote: BackendQuote): QuoteSnapshot {
   }
 }
 
-function normalizeEntry(row: BackendWatchlistRow): WatchlistEntry {
+function normalizeEntry(row: BackendWatchlistRow, category = 'All'): WatchlistEntry {
   return {
     symbol: row.symbol,
     company: row.name ?? row.symbol,
+    category: row.category ?? category,
   }
 }
 
@@ -252,6 +264,8 @@ function normalizePosition(row: BackendPosition): Position {
     profitLoss: row.profitLoss,
     profitLossPercent: row.profitLossPercent,
     todayProfitLoss: row.todayProfitLoss ?? null,
+    takeProfit: row.takeProfit ?? null,
+    stopLoss: row.stopLoss ?? null,
     trend: tone === null || tone === undefined ? 'flat' : tone > 0 ? 'up' : tone < 0 ? 'down' : 'flat',
   }
 }
@@ -332,15 +346,18 @@ export const marketApi = {
    * Membership is read from the OpenD watchlist group at runtime — there is no
    * client-side list of symbols to drift out of sync with what the user tracks.
    */
-  async watchlist(signal?: AbortSignal): Promise<readonly WatchlistEntry[]> {
-    const response = await fetch(`${API_BASE}/market/watchlist`, { signal })
-
-    if (!response.ok) {
-      throw new ApiError(`Watchlist API responded ${response.status}`, response.status)
-    }
-
+  async watchlist(group = 'All', signal?: AbortSignal): Promise<readonly WatchlistEntry[]> {
+    const response = await fetch(`${API_BASE}/market/watchlist?group=${encodeURIComponent(group)}`, { signal })
+    if (!response.ok) throw new ApiError(`Watchlist API responded ${response.status}`, response.status)
     const data = (await response.json()) as BackendWatchlistResponse
-    return data.symbols.map(normalizeEntry)
+    return data.symbols.map((row) => normalizeEntry(row, data.group ?? group))
+  },
+
+  async watchlistGroups(signal?: AbortSignal): Promise<readonly string[]> {
+    const response = await fetch(`${API_BASE}/market/watchlist/groups`, { signal })
+    if (!response.ok) throw new ApiError(`Watchlist groups API responded ${response.status}`, response.status)
+    const data = (await response.json()) as BackendWatchlistGroupsResponse
+    return data.groups
   },
 
   /**
@@ -351,8 +368,8 @@ export const marketApi = {
    * Throws only on transport/permission failure, so the UI can show an explicit
    * unavailable state instead of inventing data.
    */
-  async quotes(signal?: AbortSignal): Promise<readonly QuoteSnapshot[]> {
-    const response = await fetch(`${API_BASE}/market/quotes`, { signal })
+  async quotes(group = 'MY', signal?: AbortSignal): Promise<readonly QuoteSnapshot[]> {
+    const response = await fetch(`${API_BASE}/market/quotes?group=${encodeURIComponent(group)}`, { signal })
 
     if (!response.ok) {
       throw new ApiError(`Quotes API responded ${response.status}`, response.status)

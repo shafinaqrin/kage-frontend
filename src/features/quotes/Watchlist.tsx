@@ -23,11 +23,19 @@ import {
   toneTextClass,
 } from '../shared/positionCells'
 
+const HIDDEN_MOOMOO_GROUPS = new Set([
+  'US', 'Futures', 'Space', 'Options', 'Crypto', 'US Options', 'HK', 'SG',
+  'Korea Stocks', 'JP', 'CN', 'AU', 'CA', 'Index', 'Bonds', 'Notes',
+])
+
 interface WatchlistProps {
   quotes: readonly QuoteSnapshot[]
   selected: string
   onSelect: (symbol: string) => void
   status: ConnectionStatus
+  groups: readonly string[]
+  selectedGroup: string
+  onGroupChange: (group: string) => void
 }
 
 const NO_DATA = '—'
@@ -63,14 +71,17 @@ function formatValue(
  * Rows stay clickable to select a symbol; sorting lives on the column headers so
  * the two never compete for the same gesture.
  */
-export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps) {
+export function Watchlist({ quotes, selected, onSelect, status, groups, selectedGroup, onGroupChange }: WatchlistProps) {
   const [query, setQuery] = useState('')
+  const visibleGroups = groups.filter((group) => !HIDDEN_MOOMOO_GROUPS.has(group))
+  const categoryGroups = visibleGroups.filter((group) => group !== 'All')
   const { rows: sorted, control } = useTableSort<SortKey, QuoteSnapshot>(quotes, SORT_ACCESSORS)
 
   const filtered = useMemo(() => {
+    const inCategory = sorted
     const needle = query.trim().toLowerCase()
-    if (!needle) return sorted
-    return sorted.filter(
+    if (!needle) return inCategory
+    return inCategory.filter(
       (q) => q.symbol.toLowerCase().includes(needle) || q.company.toLowerCase().includes(needle),
     )
   }, [sorted, query])
@@ -82,7 +93,25 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
           <h2 className={panelHeadTitleClass}>Watchlist</h2>
           <p className={panelSubClass}>{filtered.length} of {quotes.length} symbols</p>
         </div>
-        <label className="flex h-9 w-[10rem] max-w-full min-w-0 flex-1 items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--m3-outline-variant)_68%,transparent)] bg-[var(--m3-surface-container)] px-3 text-muted transition-[border-color,box-shadow] duration-300 motion-standard focus-within:border-[var(--m3-primary)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--m3-primary)_14%,transparent)] max-[768px]:w-full">
+        <div className="flex w-full flex-wrap items-center justify-end gap-2 max-[768px]:justify-start">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-[var(--m3-surface-container)] p-1" aria-label="Watchlist categories" role="tablist">
+            {categoryGroups.map((group) => {
+              const active = group === selectedGroup
+              return (
+                <button
+                  key={group}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[0.7rem] font-semibold transition-all duration-300 motion-standard ${active ? 'bg-[var(--m3-primary)] text-[var(--m3-on-primary)] shadow-[0_0.3rem_0.8rem_color-mix(in_srgb,var(--m3-primary)_22%,transparent)]' : 'text-muted hover:bg-[color-mix(in_srgb,var(--m3-on-surface)_7%,transparent)] hover:text-ink'}`}
+                  onClick={() => onGroupChange(group)}
+                >
+                  {group}
+                </button>
+              )
+            })}
+          </div>
+          <label className="flex h-9 min-w-[9rem] max-w-full flex-1 items-center gap-2 rounded-full border border-[color-mix(in_srgb,var(--m3-outline-variant)_68%,transparent)] bg-[var(--m3-surface-container)] px-3 text-muted transition-[border-color,box-shadow] duration-300 motion-standard focus-within:border-[var(--m3-primary)] focus-within:shadow-[0_0_0_3px_color-mix(in_srgb,var(--m3-primary)_14%,transparent)] max-[768px]:w-full">
           <Icon name="search" size={16} />
           <input
             type="search"
@@ -92,7 +121,8 @@ export function Watchlist({ quotes, selected, onSelect, status }: WatchlistProps
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-        </label>
+          </label>
+        </div>
       </header>
 
       {quotes.length === 0 ? (
